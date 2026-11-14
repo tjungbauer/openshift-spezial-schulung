@@ -1,0 +1,63 @@
+# catalog – products, details and stock
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/name: catalog
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:            # no runAsUser: OpenShift picks one from the project range
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: catalog
+        image: shop-catalog       # set by the overlay (images:)
+        imagePullPolicy: Always   # tags like shop-test are reused – always fetch the newest image
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: catalog
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:             # up to 60 s to start (FAULT_STARTUP_DELAY_S)
+          httpGet:
+            path: /health/started
+            port: http
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:           # out of the Service while not ready
+          httpGet:
+            path: /health/ready
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2
+        livenessProbe:            # restart only if the process is stuck
+          httpGet:
+            path: /health/live
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3

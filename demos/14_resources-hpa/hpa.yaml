@@ -1,0 +1,24 @@
+# Demo 14 – scale catalog between 1 and 5 replicas at 60 % of the CPU request (50m -> 30m)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/part-of: demo-14
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: catalog
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120   # demo: 2 minutes (default 300 s)

@@ -1,0 +1,14 @@
+# Cluster-admin only, once per cluster – NOT part of the shop kustomizations.
+# Turns on monitoring for user projects, so the ServiceMonitors of the
+# monitoring component are scraped (Observe -> Metrics in the console).
+#   oc apply -f deploy/cluster/user-workload-monitoring.yaml
+# Careful: if the cluster already has a cluster-monitoring-config, add the
+# line enableUserWorkload: true to it instead of replacing it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true

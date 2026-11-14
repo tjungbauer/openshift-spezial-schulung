@@ -1,0 +1,52 @@
+# web – the ACME shop UI: static HTML/CSS/JS served by nginx, /api/ proxied
+#
+# Build (from shop/):  make build   – or by hand:
+#   podman build --platform linux/amd64 \
+#     --build-arg APP_VERSION=1.0.0 --build-arg APP_REVISION=$(git rev-parse --short HEAD) \
+#     -t shop-web:1.0.0 web/
+#
+# Runs under OpenShift's restricted-v2 SCC: any UID, GID 0, port 8080,
+# writes only to /tmp.
+
+ARG BUILDER_IMAGE=registry.access.redhat.com/hi/nginx:1.30.6-builder
+ARG RUNTIME_IMAGE=registry.access.redhat.com/hi/nginx:1.30.6
+
+# ── build: assemble the files and write the version for /info ───────────────
+FROM ${BUILDER_IMAGE} AS build
+USER 0
+ARG APP_VERSION=0.0.0-dev
+ARG APP_REVISION=unknown
+COPY html/ /out/usr/share/nginx/html/
+COPY nginx.conf /out/etc/nginx/nginx.conf
+COPY upstreams.conf /out/etc/nginx/shop/upstreams.conf
+RUN mkdir -p /out/etc/nginx/shop-build && \
+    printf 'map $host $shop_version  { default "%s"; }\nmap $host $shop_revision { default "%s"; }\n' \
+      "${APP_VERSION}" "${APP_REVISION}" > /out/etc/nginx/shop-build/version.conf && \
+    chmod -R a+rX,go-w /out
+
+# ── runtime: nginx + our files ──────────────────────────────────────────────
+FROM ${RUNTIME_IMAGE}
+
+ARG APP_VERSION=0.0.0-dev
+ARG APP_REVISION=unknown
+ARG APP_CREATED=unknown
+ARG APP_SOURCE=https://example.com/acme/shop
+
+LABEL org.opencontainers.image.title="shop-web" \
+      org.opencontainers.image.description="ACME shop – web UI" \
+      org.opencontainers.image.vendor="ACME" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${APP_REVISION}" \
+      org.opencontainers.image.created="${APP_CREATED}" \
+      org.opencontainers.image.source="${APP_SOURCE}"
+
+ENV APP_VERSION="${APP_VERSION}" \
+    APP_REVISION="${APP_REVISION}"
+
+COPY --from=build /out/ /
+USER 1001
+EXPOSE 8080
+# nginx: SIGQUIT = graceful shutdown (finish running requests), SIGTERM = fast
+STOPSIGNAL SIGQUIT
+ENTRYPOINT ["/usr/sbin/nginx"]
+CMD ["-c", "/etc/nginx/nginx.conf", "-e", "/dev/stderr", "-g", "daemon off;"]

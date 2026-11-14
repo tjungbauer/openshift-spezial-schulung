@@ -1,0 +1,20 @@
+# Lab 5 – the Argo CD Application for the dev overlay.
+# <NS> and <REPO_URL> are replaced by sed in task 2 of the README.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: website-dev
+  namespace: <NS>                    # where your Argo CD instance runs
+spec:
+  project: default
+  source:
+    repoURL: <REPO_URL>
+    targetRevision: main
+    path: overlays/dev
+  destination:
+    server: https://kubernetes.default.svc   # the cluster Argo CD runs in
+    namespace: <NS>
+  syncPolicy:
+    automated:
+      prune: true                    # deleted in Git -> deleted in the cluster
+      selfHeal: true                 # changed in the cluster -> reset to Git

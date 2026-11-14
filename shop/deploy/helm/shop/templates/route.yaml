@@ -1,0 +1,22 @@
+{{- if .Values.web.route.enabled }}
+# the only way into the shop from outside: HTTPS, TLS ends at the router
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.web.route.host }}
+  host: {{ . }}
+  {{- end }}
+  to:
+    kind: Service
+    name: web
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+{{- end }}

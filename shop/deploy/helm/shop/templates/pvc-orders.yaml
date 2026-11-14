@@ -1,0 +1,19 @@
+{{- if .Values.orders.persistence.enabled }}
+# SQLite of orders on a PVC – orders survive a restart
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: orders-data
+  labels:
+    app.kubernetes.io/name: orders
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  {{- with .Values.orders.persistence.storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.orders.persistence.size }}
+{{- end }}

@@ -1,0 +1,15 @@
+# Overrides for "oc run": adds a securityContext that satisfies the
+# PodSecurity "restricted" profile. Merged into the generated pod with
+# --override-type=strategic (containers are matched by name).
+spec:
+  securityContext:                 # pod level
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: ubi                      # must match the pod name given to oc run
+    securityContext:               # container level
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL

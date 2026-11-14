@@ -1,0 +1,9 @@
+# catalog settings – every key becomes an environment variable
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog
+data:
+  LOG_LEVEL: info
+  # To change the products without a new image: put a products.json into a
+  # ConfigMap, mount it and set PRODUCTS_FILE to its path (see README).

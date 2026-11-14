@@ -1,0 +1,13 @@
+# orders settings – every key becomes an environment variable
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+    {{- include "shop.labels" . | nindent 4 }}
+data:
+  LOG_LEVEL: {{ .Values.logLevel | quote }}
+  CATALOG_URL: http://catalog:8080
+  DATA_DIR: /var/lib/shop
+  ORDERS_PERSISTENT: {{ .Values.orders.persistence.enabled | quote }}   # shown in the UI

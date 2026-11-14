@@ -1,0 +1,52 @@
+# web app for demo 06: Deployment + Service + edge Route
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels: { app: web, openshift-example: "yes" }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web, openshift-example: "yes" }
+    spec:
+      securityContext:            # PodSecurity "restricted" (see demo 01)
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: nginx
+        image: quay.io/nginx/nginx-unprivileged:1.29.1
+        ports:
+        - { name: http, containerPort: 8080 }
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+        readinessProbe:
+          httpGet: { path: /, port: 8080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels: { app: web, openshift-example: "yes" }
+spec:
+  selector: { app: web }
+  ports:
+  - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  labels: { app: web, openshift-example: "yes" }
+spec:
+  to: { kind: Service, name: web }
+  port: { targetPort: http }
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

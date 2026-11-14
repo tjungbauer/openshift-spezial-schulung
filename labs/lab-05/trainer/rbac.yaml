@@ -1,0 +1,13 @@
+# Lab 5 – lets the student create Applications in the namespace (lab-05-setup.sh
+# fills in the user). Harmless if the admin role already allows it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: lab-05-argocd-applications
+rules:
+- apiGroups: ["argoproj.io"]
+  resources: ["applications"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["argoproj.io"]
+  resources: ["appprojects"]
+  verbs: ["get", "list", "watch"]

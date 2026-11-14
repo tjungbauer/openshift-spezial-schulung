@@ -1,0 +1,21 @@
+# web proxies /api/... to the four backends
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-to-backends
+spec:
+  podSelector:
+    matchExpressions:
+    - key: app.kubernetes.io/name
+      operator: In
+      values: [catalog, cart, orders, review]
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: web
+    ports:
+    - protocol: TCP
+      port: 8080

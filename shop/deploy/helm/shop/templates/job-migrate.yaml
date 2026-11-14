@@ -1,0 +1,45 @@
+{{- if .Values.postgresql.enabled }}
+# Creates the orders table and exits – as a Helm hook it runs after every install
+# and upgrade. before-hook-creation deletes the old Job first: no "field is immutable".
+# orders runs the same migration itself before it reports ready.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: orders-migrate
+  labels:
+    app.kubernetes.io/name: orders-migrate
+    {{- include "shop.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-migrate
+        {{- include "shop.labels" . | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: migrate
+        image: {{ include "shop.image" (list . "orders") }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command: [python3.12, -m, orders.migrate]
+        env:
+          {{- include "shop.databaseEnv" . | nindent 8 }}
+        - name: MIGRATE_TIMEOUT_S
+          value: "120"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+        {{- include "shop.containerSecurity" . | nindent 8 }}
+{{- end }}

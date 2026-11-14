@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: hello
+  name: hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: hello
+    spec:
+      containers:
+      - image: quay.io/nginx/nginx-unprivileged:1.29.1
+        name: nginx-unprivileged
+        ports:
+        - containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+        env:
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef: { name: hello-secret, key: API_KEY }
+        volumeMounts:
+        - { name: page, mountPath: /usr/share/nginx/html }
+        resources: {}
+      volumes:
+      - name: page
+        configMap: { name: hello-page }
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+status: {}

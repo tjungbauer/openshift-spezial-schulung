@@ -1,0 +1,58 @@
+# The whole shop in ONE podman pod – for running it locally:
+#   make run-local          (or: scripts/run-local.sh)
+#   open http://localhost:8080
+#
+# All containers of a pod share localhost, so every backend gets its own
+# port (PORT) and web gets an upstreams.conf that points to localhost
+# instead of the Kubernetes Service names – mounted from the ConfigMap below.
+# @VERSION@ is replaced by scripts/run-local.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-web-upstreams
+data:
+  upstreams.conf: |
+    upstream catalog { server 127.0.0.1:8081; }
+    upstream cart    { server 127.0.0.1:8082; }
+    upstream orders  { server 127.0.0.1:8083; }
+    upstream review  { server 127.0.0.1:8084; }
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shop
+  labels:
+    app.kubernetes.io/part-of: shop
+spec:
+  containers:
+  - name: catalog
+    image: localhost/shop-catalog:@VERSION@
+    env:
+    - { name: PORT, value: "8081" }
+  - name: cart
+    image: localhost/shop-cart:@VERSION@
+    env:
+    - { name: PORT, value: "8082" }
+  - name: orders
+    image: localhost/shop-orders:@VERSION@
+    env:
+    - { name: PORT, value: "8083" }
+    - { name: CATALOG_URL, value: "http://127.0.0.1:8081" }
+    volumeMounts:
+    - { name: orders-data, mountPath: /var/lib/shop }
+  - name: review
+    image: localhost/shop-review:@VERSION@
+    env:
+    - { name: PORT, value: "8084" }
+  - name: web
+    image: localhost/shop-web:@VERSION@
+    ports:
+    - { containerPort: 8080, hostPort: 8080 }
+    volumeMounts:
+    - { name: upstreams, mountPath: /etc/nginx/shop }
+  volumes:
+  - name: orders-data
+    emptyDir: {}
+  - name: upstreams
+    configMap:
+      name: shop-web-upstreams

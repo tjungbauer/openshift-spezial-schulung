@@ -1,0 +1,6 @@
+apiVersion: v2
+name: website
+description: A simple website – Deployment, Service and Route
+type: application
+version: 0.1.0          # the chart – raise it when you change the chart
+appVersion: "1.29.1"    # the nginx version – default image tag

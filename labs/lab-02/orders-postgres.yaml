@@ -1,0 +1,32 @@
+# Switch orders from SQLite to PostgreSQL – a patch for the existing Deployment:
+#   oc patch deployment orders -p "$(cat orders-postgres.yaml)"
+# 1. an init container waits until PostgreSQL accepts connections (pg_isready,
+#    from the PostgreSQL image – no own image needed)
+# 2. orders gets DATABASE_URL, built from the Secret "postgres"
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: registry.redhat.io/rhel9/postgresql-16:9.9-1793851884
+        command:
+        - /bin/bash
+        - -c
+        - until pg_isready -h postgres -p 5432; do echo "waiting for postgres"; sleep 2; done
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+      containers:
+      - name: orders
+        env:
+        - name: DB_USER
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_USER } }
+        - name: DB_PASSWORD
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_PASSWORD } }
+        - name: DB_NAME
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_DATABASE } }
+        - name: DATABASE_URL
+          value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)

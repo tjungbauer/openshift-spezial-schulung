@@ -1,0 +1,163 @@
+{{- if .Values.backup.enabled }}
+{{- with .Values.backup }}
+# Database backups: pg_dump every few minutes into the PVC "backups";
+# backup-viewer mounts the same PVC read-only:  oc rsh deploy/backup-viewer ls -l /backups
+# ReadWriteOnce = one NODE: the CronJob runs on the node of backup-viewer (pod affinity).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  labels:
+    app.kubernetes.io/name: db-backup
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  {{- with .storageClassName }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .size }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  labels:
+    app.kubernetes.io/name: db-backup
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ .schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: db-backup
+            {{- include "shop.labels" $ | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: backup-viewer
+                topologyKey: kubernetes.io/hostname
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: pg-dump
+            image: {{ $.Values.postgresql.image }}   # same image as the database: matching pg_dump
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              file="shop-$(date -u +%Y%m%dT%H%M%SZ).dump"
+              pg_dump --format=custom --file="/backups/.${file}.tmp"
+              mv "/backups/.${file}.tmp" "/backups/${file}"
+              mapfile -t old < <(ls -1t /backups/shop-*.dump | tail -n +{{ add1 .keep }})
+              for f in "${old[@]}"; do rm -f -- "$f"; done
+              echo "backup written: ${file}"
+              ls -l /backups
+            env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_PASSWORD } }
+            - name: PGDATABASE
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_DATABASE } }
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            {{- include "shop.containerSecurity" $ | nindent 12 }}
+            volumeMounts:
+            - name: backups
+              mountPath: /backups
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: backups
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-viewer
+  labels:
+    app.kubernetes.io/name: backup-viewer
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate      # ReadWriteOnce volume: the old pod must let go first
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-viewer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backup-viewer
+        {{- include "shop.labels" $ | nindent 8 }}
+    spec:
+      {{- include "shop.podSecurity" $ | nindent 6 }}
+      containers:
+      - name: viewer
+        image: {{ .viewerImage }}
+        command: [python3.12, -m, http.server, "8080", --directory, /backups]
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        {{- include "shop.containerSecurity" $ | nindent 8 }}
+        readinessProbe:
+          httpGet: { path: /, port: http }
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket: { port: http }
+          periodSeconds: 20
+        volumeMounts:
+        - name: backups
+          mountPath: /backups
+          readOnly: true
+      volumes:
+      - name: backups
+        persistentVolumeClaim:
+          claimName: backups
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-viewer
+  labels:
+    app.kubernetes.io/name: backup-viewer
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: backup-viewer
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+{{- end }}
+{{- end }}

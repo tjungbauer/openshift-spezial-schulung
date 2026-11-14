@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      volumes:
+      - name: data
+        emptyDir: null          # remove the emptyDir ...
+        persistentVolumeClaim:  # ... and use the PVC instead
+          claimName: orders-data
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders
+data:
+  ORDERS_PERSISTENT: "true"

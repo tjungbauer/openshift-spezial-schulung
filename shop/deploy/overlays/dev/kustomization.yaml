@@ -1,0 +1,38 @@
+# dev: the base with the dev images.   oc apply -n shop-dev -k deploy/overlays/dev
+# `make deploy SET_IMAGES=true` rewrites the images below to
+# $REGISTRY/$IMAGE_PREFIX<service>$IMAGE_SUFFIX:$IMAGE_TAG before it applies.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../base
+
+# building blocks – dev keeps SQLite, on a PVC
+# (available: networkpolicies, monitoring, persistent-orders, postgres, backup;
+#  persistent-orders and postgres are alternatives for the orders data,
+#  backup needs postgres)
+components:
+- ../../components/networkpolicies
+- ../../components/monitoring
+- ../../components/persistent-orders
+
+labels:
+- includeTemplates: true
+  pairs:
+    app.kubernetes.io/version: 1.0.0
+
+images:
+- name: shop-cart
+  newName: quay.io/tjungbau/shop-cart-dev
+  newTag: shop-test-dev
+- name: shop-catalog
+  newName: quay.io/tjungbau/shop-catalog-dev
+  newTag: shop-test-dev
+- name: shop-orders
+  newName: quay.io/tjungbau/shop-orders-dev
+  newTag: shop-test-dev
+- name: shop-web
+  newName: quay.io/tjungbau/shop-web-dev
+  newTag: shop-test-dev
+- name: shop-review
+  newName: quay.io/tjungbau/shop-review-dev
+  newTag: shop-test-dev

@@ -1,0 +1,16 @@
+# The ACME shop – everything for one namespace, no cluster-scoped objects.
+#   oc apply -k deploy/overlays/dev
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- catalog
+- cart
+- orders
+- review
+- web
+labels:
+- pairs:
+    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/version: "1.0.0"   # the overlays set the real version
+  includeSelectors: false
+  includeTemplates: true

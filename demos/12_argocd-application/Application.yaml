@@ -1,0 +1,26 @@
+# Demo 12 – the Application the Argo CD form creates (UI: + NEW APP).
+# Same object as "EDIT AS YAML" in the form. Apply it instead of clicking:
+#   oc apply -f Application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hello-php
+  namespace: openshift-gitops          # the Argo CD instance of OpenShift GitOps
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tjungbauer/openshift-basics
+    targetRevision: main
+    path: hello-php-helm/hello-php     # the folder with Chart.yaml – not hello-php-helm
+    helm:
+      valueFiles:
+      - values-prod.yaml               # relative to path, merged over values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: hello-php-demo
+  syncPolicy:
+    automated:
+      prune: true                      # deleted in Git -> deleted in the cluster
+      selfHeal: true                   # changed in the cluster -> reset to Git
+    syncOptions:
+    - CreateNamespace=true

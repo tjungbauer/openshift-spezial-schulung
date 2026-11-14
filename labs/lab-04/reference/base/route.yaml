@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: website
+  labels:
+    app.kubernetes.io/name: website
+spec:
+  to:
+    kind: Service
+    name: website
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

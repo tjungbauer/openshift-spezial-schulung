@@ -1,0 +1,10 @@
+# orders keeps SQLite on a PVC instead of an emptyDir: orders survive a restart.
+# SQLite = one writer: replicas stay at 1 and updates use Recreate (a ReadWriteOnce
+# volume cannot be mounted by the old and the new pod on different nodes).
+# Needs a default StorageClass.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+- pvc.yaml
+patches:
+- path: orders-pvc.yaml

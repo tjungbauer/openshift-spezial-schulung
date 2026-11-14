@@ -1,0 +1,17 @@
+# Shared by two pods at the same time (CronJob writes, viewer reads) – hence ReadWriteMany.
+# RWX needs a file-based StorageClass (ODF: ocs-storagecluster-cephfs, NFS, ...).
+# If the default StorageClass is block storage (RWO only), the PVC stays Pending –
+# then set storageClassName below.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  labels:
+    app.kubernetes.io/name: db-backup
+spec:
+  accessModes:
+  - ReadWriteMany
+  # storageClassName: ocs-storagecluster-cephfs
+  resources:
+    requests:
+      storage: 2Gi

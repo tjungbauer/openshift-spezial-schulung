@@ -1,0 +1,25 @@
+{{- /* only if user workload monitoring's CRD exists – helm template needs
+       --api-versions monitoring.coreos.com/v1 to render it */ -}}
+{{- if and .Values.monitoring.enabled (.Capabilities.APIVersions.Has "monitoring.coreos.com/v1") }}
+{{- $backends := list "catalog" "cart" "orders" }}
+{{- if .Values.review.enabled }}{{ $backends = append $backends "review" }}{{ end }}
+{{- range $backends }}
+---
+# scrape /metrics of {{ . }} every 30 s
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ . }}
+  labels:
+    app.kubernetes.io/name: {{ . }}
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ . }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+{{- end }}
+{{- end }}

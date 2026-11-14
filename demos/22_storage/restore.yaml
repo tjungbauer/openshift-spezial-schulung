@@ -1,0 +1,44 @@
+# Demo 22 – a NEW PVC filled from the snapshot, and a Pod that reads it
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-restored
+  labels:
+    app.kubernetes.io/part-of: demo-22
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+  dataSource:
+    name: data-snap
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: reader
+  labels:
+    app.kubernetes.io/part-of: demo-22
+spec:
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+  - name: shell
+    image: registry.access.redhat.com/ubi9/ubi:9.9
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - { name: data, mountPath: /data }
+    resources:
+      requests: { cpu: 10m, memory: 16Mi }
+      limits: { memory: 32Mi }
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: data-restored

@@ -1,0 +1,40 @@
+# prod: the base with the prod images.  oc apply -n shop -k deploy/overlays/prod
+# `make deploy SET_IMAGES=true` rewrites the images below to
+# $REGISTRY/$IMAGE_PREFIX<service>$IMAGE_SUFFIX:$IMAGE_TAG before it applies.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../base
+
+# building blocks – prod runs orders on PostgreSQL
+# (available: networkpolicies, monitoring, persistent-orders, postgres, backup;
+#  persistent-orders and postgres are alternatives for the orders data,
+#  backup needs postgres)
+components:
+- ../../components/networkpolicies
+- ../../components/monitoring
+- ../../components/postgres
+- ../../components/backup
+
+labels:
+- pairs:
+    app.kubernetes.io/version: "1.0.0"
+  includeSelectors: false
+  includeTemplates: true
+
+images:
+- name: shop-catalog
+  newName: quay.io/tjungbau/shop-catalog
+  newTag: shop-test
+- name: shop-cart
+  newName: quay.io/tjungbau/shop-cart
+  newTag: shop-test
+- name: shop-orders
+  newName: quay.io/tjungbau/shop-orders
+  newTag: shop-test
+- name: shop-web
+  newName: quay.io/tjungbau/shop-web
+  newTag: shop-test
+- name: shop-review
+  newName: quay.io/tjungbau/shop-review
+  newTag: shop-test

@@ -1,0 +1,28 @@
+# a Pod with curl – plays the browser: places orders through web
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels:
+    app.kubernetes.io/name: client
+spec:
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: client
+    image: registry.redhat.io/ubi9/ubi:9.9
+    command: ["sleep", "infinity"]
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL

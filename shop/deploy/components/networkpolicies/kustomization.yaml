@@ -1,0 +1,12 @@
+# Closes the namespace and opens exactly the paths the shop needs:
+#   router -> web,  web -> catalog/cart/orders/review,  orders -> catalog,
+#   OpenShift monitoring -> all pods (metrics).
+# Probes from the kubelet are not affected by NetworkPolicies.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+- default-deny.yaml
+- allow-from-router.yaml
+- allow-web-to-backends.yaml
+- allow-orders-to-catalog.yaml
+- allow-from-monitoring.yaml

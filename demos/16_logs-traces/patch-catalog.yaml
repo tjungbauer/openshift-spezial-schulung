@@ -1,0 +1,13 @@
+# catalog with an admin token – the demo switches a delay on with POST /admin/fault
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+spec:
+  template:
+    spec:
+      containers:
+      - name: catalog
+        env:
+        - name: ADMIN_TOKEN
+          value: demo-token

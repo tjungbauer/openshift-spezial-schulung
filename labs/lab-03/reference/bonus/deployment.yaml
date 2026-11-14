@@ -1,0 +1,44 @@
+# Bonus: the Deployment with the page from the ConfigMap – copy to website/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "website.fullname" . }}
+  labels:
+    {{- include "website.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "website.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "website.labels" . | nindent 8 }}
+      annotations:                  # new page -> new checksum -> rolling update
+        checksum/page: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      securityContext:              # PodSecurity "restricted"
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: page
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: page
+          configMap:
+            name: {{ include "website.fullname" . }}-page

@@ -1,0 +1,19 @@
+# orders asks catalog to check and reduce the stock
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-orders-to-catalog
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: orders
+    ports:
+    - protocol: TCP
+      port: 8080

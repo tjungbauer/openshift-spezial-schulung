@@ -1,0 +1,39 @@
+# helm test: web answers and the catalogue comes through web's /api/ proxy.
+# Uses the orders image (it has Python) – no extra image needed.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shop-test-api
+  labels:
+    app.kubernetes.io/name: shop-test
+    {{- include "shop.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - name: test
+    image: {{ include "shop.image" (list . "orders") }}
+    command:
+    - python3.12
+    - -c
+    - |
+      import json, urllib.request
+      for path in ("/health/ready", "/api/catalog/products"):
+          with urllib.request.urlopen("http://web:8080" + path, timeout=5) as r:
+              print(path, r.status)
+      data = json.load(urllib.request.urlopen("http://web:8080/api/catalog/products", timeout=5))
+      assert data["products"], "no products"
+      print("products:", len(data["products"]))
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    {{- include "shop.containerSecurity" . | nindent 4 }}

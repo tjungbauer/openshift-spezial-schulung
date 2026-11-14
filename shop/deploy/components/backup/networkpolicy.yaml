@@ -1,0 +1,21 @@
+# Matters once the networkpolicies component closes the namespace – harmless without it.
+# db-backup may reach PostgreSQL. backup-viewer needs no policy: nothing has to reach it
+# (oc rsh and oc port-forward go through the API server, not the pod network).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backup-to-postgres
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: db-backup
+    ports:
+    - protocol: TCP
+      port: 5432

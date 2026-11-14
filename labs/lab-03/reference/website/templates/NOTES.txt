@@ -1,0 +1,7 @@
+Release {{ .Release.Name }} (revision {{ .Release.Revision }}) in namespace {{ .Release.Namespace }}.
+{{- if .Values.route.enabled }}
+
+Open the website:
+  ROUTE=$(oc get route {{ include "website.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.spec.host}')
+  curl -k https://$ROUTE
+{{- end }}

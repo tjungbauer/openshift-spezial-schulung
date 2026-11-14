@@ -1,0 +1,75 @@
+# YOUR TASK: fill in the three TODOs, then  oc apply -f backup/cronjob.yaml
+# pg_dump of the shop database every 5 minutes (short on purpose – it is a demo).
+# Same image as the StatefulSet, so pg_dump matches the server version.
+# Credentials from the existing Secret "postgres" via the libpq variables PG*.
+# Writes to a temporary file first and renames it – the viewer never shows half a dump.
+# Keeps the newest 12 dumps (one hour).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  labels:
+    app.kubernetes.io/name: db-backup
+spec:
+  schedule: "TODO"                      # TODO 1: every 5 minutes (cron syntax)
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 300
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: db-backup
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+          - name: pg-dump
+            image: TODO                   # TODO 2: the same image as the StatefulSet (pg_dump must match the server)
+            command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              file="shop-$(date -u +%Y%m%dT%H%M%SZ).dump"
+              pg_dump --format=custom --file="/backups/.${file}.tmp"
+              mv "/backups/.${file}.tmp" "/backups/${file}"
+              mapfile -t old < <(ls -1t /backups/shop-*.dump | tail -n +13)
+              for f in "${old[@]}"; do rm -f -- "$f"; done
+              echo "backup written: ${file}"
+              ls -l /backups
+            env:
+            - name: PGHOST
+              value: postgres
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_USER } }
+            - name: PGPASSWORD
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_PASSWORD } }
+            - name: PGDATABASE
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_DATABASE } }
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+            volumeMounts:
+            - name: backups
+              mountPath: /backups
+          volumes:
+          - name: backups
+            persistentVolumeClaim:
+              claimName: TODO             # TODO 3: the PVC from backup/pvc.yaml

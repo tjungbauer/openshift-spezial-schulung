@@ -1,0 +1,60 @@
+# scrape /metrics of every backend Service every 30 s
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/name: catalog
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cart
+  labels:
+    app.kubernetes.io/name: cart
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cart
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: review
+  labels:
+    app.kubernetes.io/name: review
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: review
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s

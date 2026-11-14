@@ -1,0 +1,60 @@
+# orders – place and list orders, calls catalog
+# data: SQLite on an emptyDir (default), SQLite on a PVC (orders.persistence)
+#       or PostgreSQL (postgresql.enabled – DATABASE_URL is set)
+{{- $pvc := .Values.orders.persistence.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  {{- if $pvc }}
+  replicas: 1                   # SQLite = one writer
+  strategy:
+    type: Recreate              # the ReadWriteOnce volume must be released first
+  {{- else }}
+  replicas: {{ .Values.orders.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+        {{- include "shop.labels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-orders.yaml") . | sha256sum }}
+    spec:
+      {{- include "shop.podSecurity" . | nindent 6 }}
+      containers:
+      - name: orders
+        image: {{ include "shop.image" (list . "orders") }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: orders
+        {{- if .Values.postgresql.enabled }}
+        env:
+          {{- include "shop.databaseEnv" . | nindent 8 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.orders.resources | nindent 10 }}
+        {{- include "shop.containerSecurity" . | nindent 8 }}
+        {{- include "shop.probes" . | nindent 8 }}
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/shop
+      volumes:
+      - name: data
+        {{- if $pvc }}
+        persistentVolumeClaim:
+          claimName: orders-data
+        {{- else }}
+        emptyDir: {}              # orders are lost when the pod goes away
+        {{- end }}

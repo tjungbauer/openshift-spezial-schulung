@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  secret: bm9ib2R5X2tub3dz
+kind: Secret
+metadata:
+  name: geheim
+type: Opaque

@@ -1,0 +1,19 @@
+# Shared by two pods at the same time (CronJob writes, viewer reads).
+# ReadWriteOnce means: one NODE, not one pod – several pods on the same node may
+# mount it. The CronJob therefore runs on the node of backup-viewer (pod affinity
+# in cronjob.yaml). Works with block storage such as AWS EBS (gp3-csi).
+# With a file-based StorageClass (ODF CephFS, NFS, EFS) you could use
+# ReadWriteMany instead and drop the affinity.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  labels:
+    app.kubernetes.io/name: db-backup
+spec:
+  accessModes:
+  - ReadWriteOnce
+  # storageClassName: gp3-csi
+  resources:
+    requests:
+      storage: 2Gi

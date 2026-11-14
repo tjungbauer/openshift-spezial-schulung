@@ -1,0 +1,86 @@
+# Lists the dumps in the browser – the same PVC, mounted read-only, in a second pod.
+# No own image: the hardened Python runtime of the shop with python -m http.server.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-viewer
+  labels:
+    app.kubernetes.io/name: backup-viewer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backup-viewer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backup-viewer
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: viewer
+        image: registry.access.redhat.com/hi/python:3.12.16
+        command: [python3.12, -m, http.server, "8080", --directory, /backups]
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        readinessProbe:
+          httpGet: { path: /, port: http }
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket: { port: http }
+          periodSeconds: 20
+        volumeMounts:
+        - name: backups
+          mountPath: /backups
+          readOnly: true
+      volumes:
+      - name: backups
+        persistentVolumeClaim:
+          claimName: backups
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backup-viewer
+  labels:
+    app.kubernetes.io/name: backup-viewer
+spec:
+  selector:
+    app.kubernetes.io/name: backup-viewer
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+---
+# the list of dumps in the browser
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: backup-viewer
+  labels:
+    app.kubernetes.io/name: backup-viewer
+spec:
+  to:
+    kind: Service
+    name: backup-viewer
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

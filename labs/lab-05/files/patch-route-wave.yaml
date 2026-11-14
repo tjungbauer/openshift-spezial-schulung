@@ -1,0 +1,7 @@
+# The Route comes last: wave 1 starts when everything in wave 0 is healthy
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: website
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"

@@ -1,0 +1,10 @@
+# orders settings – every key becomes an environment variable
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders
+data:
+  LOG_LEVEL: info
+  CATALOG_URL: http://catalog:8080
+  DATA_DIR: /var/lib/shop
+  ORDERS_PERSISTENT: "false"    # shown in the UI; the persistent-orders component sets "true"

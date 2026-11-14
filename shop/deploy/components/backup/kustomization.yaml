@@ -1,0 +1,18 @@
+# Database backups – for the StatefulSet / storage lab. Needs the postgres component.
+#   CronJob db-backup     pg_dump of the shop database every 5 minutes into the PVC "backups"
+#   PVC backups           ReadWriteOnce – the CronJob writes, backup-viewer reads at the same time;
+#                         both on the same node (pod affinity), so block storage (EBS) is enough
+#   backup-viewer         holds the same PVC read-only – look at the dumps from the terminal:
+#                         oc rsh deploy/backup-viewer ls -l /backups   (no Route on purpose)
+# Only existing images: the PostgreSQL image (pg_dump) and the hardened Python image
+# with a shell (hi/python:3.12.16-builder, python -m http.server – reachable only with
+# oc port-forward). The dumps contain all orders: keep them inside the cluster.
+#   take a backup now:  oc create job db-backup-now --from=cronjob/db-backup
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+- pvc.yaml
+- cronjob.yaml
+- viewer-deployment.yaml
+- viewer-service.yaml
+- networkpolicy.yaml

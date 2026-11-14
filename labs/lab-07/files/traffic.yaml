@@ -1,0 +1,65 @@
+# Lab 7 – steady traffic through web (about 5 requests per second): the product list and
+# single products, like a browser would ask. A lab tool, not part of the shop: it does
+# NOT go to Git – apply it with oc, delete it at the end.
+# It calls web, not catalog: web logs every request too, with the same request id.
+# The shop's NetworkPolicies only let the router reach web – the second object lets
+# "traffic" in.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  labels:
+    app.kubernetes.io/name: traffic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traffic
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traffic
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: traffic
+        image: registry.redhat.io/ubi9/ubi:9.9
+        command: ["bash", "-c"]
+        args:
+        - |
+          ids=(mug socks rucksack plant torch)
+          n=0
+          while true; do
+            n=$((n + 1))
+            curl -s -o /dev/null -m 5 http://web:8080/api/catalog/products
+            curl -s -o /dev/null -m 5 "http://web:8080/api/catalog/products/${ids[n % 5]}"
+            sleep 0.4
+          done
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-traffic-to-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: traffic
+    ports:
+    - protocol: TCP
+      port: 8080

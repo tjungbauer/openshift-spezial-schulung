@@ -1,0 +1,21 @@
+# Day 2 start – the Argo CD Application for the shop's dev overlay.
+# Lives in your namespace (<NS>, next to your Argo CD), deploys to <NS>-shop.
+# <NS> and <REPO_URL> are replaced by sed – see README.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shop-dev
+  namespace: <NS>
+spec:
+  project: default
+  source:
+    repoURL: <REPO_URL>
+    targetRevision: main
+    path: overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: <NS>-shop               # managed by your Argo CD (trainer setup)
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

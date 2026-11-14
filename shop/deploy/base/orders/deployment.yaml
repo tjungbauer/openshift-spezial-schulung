@@ -1,0 +1,69 @@
+# orders – place and list orders, calls catalog
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders
+  labels:
+    app.kubernetes.io/name: orders
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:            # no runAsUser: OpenShift picks one from the project range
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: orders
+        image: shop-orders       # set by the overlay (images:)
+        imagePullPolicy: Always   # tags like shop-test are reused – always fetch the newest image
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: orders
+        resources:
+          requests:
+            cpu: 50m
+            memory: 96Mi
+          limits:
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:             # up to 60 s to start (FAULT_STARTUP_DELAY_S)
+          httpGet:
+            path: /health/started
+            port: http
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:           # out of the Service while not ready
+          httpGet:
+            path: /health/ready
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2
+        livenessProbe:            # restart only if the process is stuck
+          httpGet:
+            path: /health/live
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/shop
+      volumes:
+      - name: data               # SQLite – emptyDir: orders are lost when the pod goes away
+        emptyDir: {}

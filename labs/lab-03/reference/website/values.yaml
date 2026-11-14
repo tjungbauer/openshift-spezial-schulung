@@ -1,0 +1,11 @@
+# Values of the website chart – only what we really want to change.
+
+replicaCount: 1
+
+image:
+  repository: quay.io/nginx/nginx-unprivileged
+  tag: ""               # empty: use appVersion from Chart.yaml
+
+route:
+  enabled: true
+  host: ""              # empty: OpenShift generates the host name

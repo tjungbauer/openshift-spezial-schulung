@@ -1,0 +1,8 @@
+# prod – like deploy/overlays/prod: release images, PostgreSQL and backups
+#   helm upgrade --install shop deploy/helm/shop -n shop -f deploy/helm/shop/values-prod.yaml
+image:
+  tag: shop-test
+postgresql:
+  enabled: true
+backup:
+  enabled: true

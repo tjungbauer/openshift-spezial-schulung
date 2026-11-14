@@ -1,0 +1,7 @@
+# Kustomize does not know that a Route refers to a Service – teach it,
+# so namePrefix / nameSuffix also rename spec.to.name
+nameReference:
+- kind: Service
+  fieldSpecs:
+  - kind: Route
+    path: spec/to/name

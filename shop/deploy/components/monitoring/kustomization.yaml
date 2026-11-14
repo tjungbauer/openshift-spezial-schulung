@@ -1,0 +1,7 @@
+# ServiceMonitors for the four backends. Needs user workload monitoring
+# enabled on the cluster and the monitoring-edit role (or similar) in the
+# namespace – the CRD itself is part of OpenShift.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+- servicemonitors.yaml

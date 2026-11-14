@@ -1,0 +1,11 @@
+apiVersion: v1
+data:
+  anotherconfig.yml: |
+    name: another
+    version: 0.2.0
+  configuration: |
+    name: example
+    version: 0.1.0
+kind: ConfigMap
+metadata:
+  name: config

@@ -1,0 +1,6 @@
+# not part of the packaged chart
+.DS_Store
+*.tgz
+*.swp
+*~
+README.md.bak

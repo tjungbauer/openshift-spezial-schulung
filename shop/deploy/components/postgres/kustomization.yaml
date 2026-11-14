@@ -1,0 +1,15 @@
+# orders on PostgreSQL instead of SQLite – for the StatefulSet lab.
+#   PostgreSQL 16 (Red Hat image) as a StatefulSet with a headless Service,
+#   a Secret with the credentials, a migration Job, and orders gets DATABASE_URL.
+# Works with plain `oc apply -k` – no operator, no manual SQL. Needs a default
+# StorageClass and access to registry.redhat.io (the cluster pull secret has it).
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+resources:
+- secret.yaml
+- service.yaml
+- statefulset.yaml
+- migrate-job.yaml
+- networkpolicy.yaml
+patches:
+- path: orders-database.yaml

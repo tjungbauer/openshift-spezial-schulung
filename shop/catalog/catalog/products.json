@@ -1,0 +1,22 @@
+[
+  {"id": "mug", "name": "Rocket Mug", "emoji": "☕", "price_pence": 1250, "stock": 40, "new": false,
+   "description": "Holds enough tea for one deployment. Dishwasher safe."},
+  {"id": "socks", "name": "Cluster Socks", "emoji": "🧦", "price_pence": 899, "stock": 60, "new": true,
+   "description": "One pair, two replicas – always highly available."},
+  {"id": "rucksack", "name": "Commuter Rucksack", "emoji": "🎒", "price_pence": 5400, "stock": 15, "new": false,
+   "description": "Room for a laptop, a cable and a spare cable."},
+  {"id": "plant", "name": "Desk Fern", "emoji": "🪴", "price_pence": 1800, "stock": 25, "new": false,
+   "description": "Needs less attention than a production cluster."},
+  {"id": "torch", "name": "Pocket Torch", "emoji": "🔦", "price_pence": 1499, "stock": 30, "new": false,
+   "description": "For finding the right log line in the dark."},
+  {"id": "cap", "name": "Container Cap", "emoji": "🧢", "price_pence": 1600, "stock": 35, "new": true,
+   "description": "Runs as any user. Fits most heads."},
+  {"id": "notebook", "name": "Runbook Notebook", "emoji": "📓", "price_pence": 799, "stock": 80, "new": false,
+   "description": "120 dotted pages for incident notes."},
+  {"id": "headphones", "name": "Focus Headphones", "emoji": "🎧", "price_pence": 7900, "stock": 10, "new": false,
+   "description": "Noise cancelling – for the open-plan office."},
+  {"id": "umbrella", "name": "Failover Umbrella", "emoji": "☂️", "price_pence": 2200, "stock": 20, "new": true,
+   "description": "Opens automatically when the weather degrades."},
+  {"id": "teddy", "name": "Pager Bear", "emoji": "🧸", "price_pence": 1999, "stock": 12, "new": false,
+   "description": "Keeps you company during on-call nights."}
+]

@@ -1,0 +1,12 @@
+The ACME shop is {{ if .Release.IsInstall }}installed{{ else }}upgraded{{ end }}: release {{ .Release.Name }}, revision {{ .Release.Revision }}, namespace {{ .Release.Namespace }}.
+
+Images:  {{ include "shop.image" (list . "<component>") }}
+Orders:  {{ if .Values.postgresql.enabled }}PostgreSQL (StatefulSet postgres){{ else if .Values.orders.persistence.enabled }}SQLite on the PVC orders-data{{ else }}SQLite on an emptyDir – lost when the pod restarts{{ end }}
+{{- if .Values.web.route.enabled }}
+
+Open the shop:
+  echo https://$(oc get route web -n {{ .Release.Namespace }} -o jsonpath='{.spec.host}')
+{{- end }}
+
+Check it:
+  helm test {{ .Release.Name }} -n {{ .Release.Namespace }}

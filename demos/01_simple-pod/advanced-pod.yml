@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    run: advanced-pod
+    openshift-example: "yes"
+  name: advanced-pod
+spec:
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+  - image: registry.redhat.io/ubi9/ubi:9.9
+    name: container1
+    command:
+      - sh
+      - -c
+      - 'echo "hello container1" && sleep infinity'
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "100Mi"
+      limits:
+        cpu: "10m"
+        memory: "100Mi"
+  - image: registry.redhat.io/ubi9/ubi:9.9
+    name: container2
+    command:
+      - sh
+      - -c
+      - 'echo "hello container2" && sleep infinity'
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources:
+      requests:
+        cpu: "10m"
+        memory: "100Mi"
+      limits:
+        cpu: "10m"
+        memory: "100Mi"

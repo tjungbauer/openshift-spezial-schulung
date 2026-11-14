@@ -1,0 +1,8 @@
+# dev – like deploy/overlays/dev: dev images, SQLite on a PVC
+#   helm upgrade --install shop deploy/helm/shop -n shop-dev -f deploy/helm/shop/values-dev.yaml
+image:
+  suffix: "-dev"
+  tag: shop-test-dev
+orders:
+  persistence:
+    enabled: true

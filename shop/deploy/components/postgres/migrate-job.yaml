@@ -1,0 +1,48 @@
+# Creates the orders table (python -m orders.migrate) and exits. orders runs the
+# same migration itself before it reports ready – the Job just makes it visible.
+# A Job's pod template cannot be changed: to rerun it with a new image, delete it first
+#   oc delete job orders-migrate && oc apply -k ...
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: orders-migrate
+  labels:
+    app.kubernetes.io/name: orders-migrate
+spec:
+  backoffLimit: 6
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-migrate
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: migrate
+        image: shop-orders        # same image as orders (set by the overlay)
+        command: [python3.12, -m, orders.migrate]
+        env:
+        - name: DB_USER
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_USER } }
+        - name: DB_PASSWORD
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_PASSWORD } }
+        - name: DB_NAME
+          valueFrom: { secretKeyRef: { name: postgres, key: POSTGRESQL_DATABASE } }
+        - name: DATABASE_URL
+          value: postgresql://$(DB_USER):$(DB_PASSWORD)@postgres:5432/$(DB_NAME)
+        - name: MIGRATE_TIMEOUT_S
+          value: "120"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL

@@ -1,0 +1,24 @@
+# The complete shop (web, catalog, cart, orders, review) in one command:
+#   oc apply -k shop
+# orders starts with SQLite on an emptyDir – task 4 switches it to PostgreSQL.
+# Trainer: point the images at your registry (e.g. the Nexus mirror) before the lab.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../../shop/deploy/base
+images:
+- name: shop-web
+  newName: quay.io/tjungbau/shop-web
+  newTag: shop-test
+- name: shop-catalog
+  newName: quay.io/tjungbau/shop-catalog
+  newTag: shop-test
+- name: shop-cart
+  newName: quay.io/tjungbau/shop-cart
+  newTag: shop-test
+- name: shop-orders
+  newName: quay.io/tjungbau/shop-orders
+  newTag: shop-test
+- name: shop-review
+  newName: quay.io/tjungbau/shop-review
+  newTag: shop-test

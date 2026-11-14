@@ -1,0 +1,67 @@
+# Demo 13 – the catalog service of the shop, alone: 2 replicas, the three probes
+# of the shop's base, and an admin token so the demo can switch faults on.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/part-of: demo-13
+spec:
+  replicas: 2
+  progressDeadlineSeconds: 60     # demo: report a stuck rollout after 1 minute (default 600)
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+        app.kubernetes.io/part-of: demo-13
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: catalog
+        image: quay.io/tjungbau/shop-catalog-dev:shop-test-dev
+        ports:
+        - name: http
+          containerPort: 8080
+        env:
+        - name: ADMIN_TOKEN       # enables POST /admin/fault (demo only)
+          value: demo-token
+        resources:
+          requests: { cpu: 50m, memory: 96Mi }
+          limits: { memory: 256Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+        startupProbe:             # up to 60 s to start – the other probes wait
+          httpGet: { path: /health/started, port: http }
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:           # out of the Service while not ready – no restart
+          httpGet: { path: /health/ready, port: http }
+          periodSeconds: 5
+          timeoutSeconds: 2
+          failureThreshold: 2
+        livenessProbe:            # restart only if the process is stuck
+          httpGet: { path: /health/live, port: http }
+          periodSeconds: 10
+          timeoutSeconds: 2
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/part-of: demo-13
+spec:
+  selector:
+    app.kubernetes.io/name: catalog
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http

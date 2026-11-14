@@ -1,0 +1,12 @@
+apiVersion: v2
+name: shop
+description: The ACME demo shop – web, catalog, cart, orders and review, optional PostgreSQL and backups
+type: application
+version: 1.0.0          # chart version – raise it with every change of the chart
+appVersion: "1.0.0"     # version of the shop images (revoked/shop/VERSION)
+kubeVersion: ">=1.28.0"    # helm template checks it against its built-in Kubernetes version
+keywords: [shop, training, openshift]
+maintainers:
+  - name: Thomas Jungbauer
+annotations:
+  acme.example/training: "OpenShift for Developers – Advanced, module 03"

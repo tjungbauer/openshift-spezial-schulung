@@ -1,0 +1,104 @@
+{{- if .Values.postgresql.enabled }}
+{{- with .Values.postgresql }}
+# Demo credentials – fine for a training, never for production
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    {{- include "shop.labels" $ | nindent 4 }}
+type: Opaque
+stringData:
+  POSTGRESQL_USER: {{ .auth.user | quote }}
+  POSTGRESQL_PASSWORD: {{ required "postgresql.auth.password is required" .auth.password | quote }}
+  POSTGRESQL_DATABASE: {{ .auth.database | quote }}
+---
+# headless Service: stable DNS name postgres-0.postgres, "postgres" resolves to the pod IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: postgresql
+---
+# PostgreSQL 16 from Red Hat – configured only through its documented env vars
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/name: postgres
+    {{- include "shop.labels" $ | nindent 4 }}
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        {{- include "shop.labels" $ | nindent 8 }}
+      annotations:              # new credentials -> restart the database pod
+        checksum/secret: {{ toJson .auth | sha256sum }}
+    spec:
+      {{- include "shop.podSecurity" $ | nindent 6 }}
+      containers:
+      - name: postgres
+        image: {{ .image }}
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        envFrom:
+        - secretRef:
+            name: postgres
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            memory: 512Mi
+        {{- include "shop.containerSecurity" $ | nindent 8 }}
+        startupProbe:
+          exec:
+            command: [/usr/libexec/check-container]
+          periodSeconds: 5
+          failureThreshold: 24
+        readinessProbe:
+          exec:
+            command: [/usr/libexec/check-container]
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command: [/usr/libexec/check-container, --live]
+          periodSeconds: 20
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/pgsql/data
+  volumeClaimTemplates:         # PVC data-postgres-0 – helm uninstall does NOT delete it
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      {{- with .storage.storageClassName }}
+      storageClassName: {{ . }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .storage.size }}
+{{- end }}
+{{- end }}

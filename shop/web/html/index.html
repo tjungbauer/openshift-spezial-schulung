@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ACME Shop</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛒</text></svg>">
+</head>
+<body data-theme="v1">
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">A</span> ACME Shop</div>
+    <nav>
+      <button id="orders-button" class="ghost" type="button">Orders</button>
+      <button id="cart-button" class="primary" type="button">Cart <span id="cart-count" class="pill">0</span></button>
+    </nav>
+  </header>
+
+  <section id="status" class="status" aria-live="polite" aria-label="Service status"></section>
+
+  <main>
+    <section class="hero">
+      <h1>Gear for people who keep things running.</h1>
+      <p>Free delivery on every order over £0 – because this is a training shop.</p>
+    </section>
+    <section id="products" class="grid" aria-label="Products">
+      <p class="muted">Loading products …</p>
+    </section>
+  </main>
+
+  <aside id="cart" class="drawer" aria-label="Cart" aria-hidden="true">
+    <header><h2>Your cart</h2><button class="close" type="button" data-close>×</button></header>
+    <ul id="cart-items" class="lines"></ul>
+    <div class="drawer-footer">
+      <div class="total"><span>Total</span><strong id="cart-total">£0.00</strong></div>
+      <button id="checkout" class="primary wide" type="button">Place order</button>
+    </div>
+  </aside>
+
+  <aside id="orders" class="drawer" aria-label="Orders" aria-hidden="true">
+    <header><h2>Your orders</h2><button class="close" type="button" data-close>×</button></header>
+    <p id="storage-note" class="note" hidden></p>
+    <ul id="order-list" class="lines"></ul>
+  </aside>
+
+  <div id="backdrop" class="backdrop" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <footer>
+    <h2>Served by</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Version</th><th>Revision</th><th>Pod (last answer)</th></tr></thead>
+      <tbody id="served-by"></tbody>
+    </table>
+    <p class="muted">ACME is a fictional company. Updated every two seconds and after every request.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+# cart – ACME shop service (Python 3.12, FastAPI)
+#
+# Build (from shop/):  make build   – or by hand:
+#   podman build --platform linux/amd64 \
+#     --build-arg APP_VERSION=1.0.0 --build-arg APP_REVISION=$(git rev-parse --short HEAD) \
+#     -t shop-cart:1.0.0 cart/
+#
+# Runs under OpenShift's restricted-v2 SCC: any UID, GID 0, port 8080,
+# writes only to /tmp.
+
+ARG BUILDER_IMAGE=registry.access.redhat.com/hi/python:3.12.16-builder
+ARG RUNTIME_IMAGE=registry.access.redhat.com/hi/python:3.12.16
+
+# ── build: install the pinned dependencies into /opt/app/deps ──────────────
+FROM ${BUILDER_IMAGE} AS build
+USER 0
+# point this at a mirror (e.g. Nexus) with --build-arg PIP_INDEX_URL=...
+ARG PIP_INDEX_URL=https://pypi.org/simple
+COPY requirements.txt /tmp/requirements.txt
+RUN python3.12 -m pip install --no-cache-dir --disable-pip-version-check \
+      --index-url "${PIP_INDEX_URL}" --target /opt/app/deps -r /tmp/requirements.txt
+COPY cart/ /opt/app/cart/
+# readable for every UID, writable for none – independent of the umask on the build host
+RUN python3.12 -m compileall -q /opt/app/cart && chmod -R a+rX,go-w /opt/app
+
+# ── runtime: Python + dependencies + code, nothing else ─────────────────────
+FROM ${RUNTIME_IMAGE}
+
+ARG APP_VERSION=0.0.0-dev
+ARG APP_REVISION=unknown
+ARG APP_CREATED=unknown
+ARG APP_SOURCE=https://example.com/acme/shop
+
+LABEL org.opencontainers.image.title="shop-cart" \
+      org.opencontainers.image.description="ACME shop – cart service" \
+      org.opencontainers.image.vendor="ACME" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${APP_REVISION}" \
+      org.opencontainers.image.created="${APP_CREATED}" \
+      org.opencontainers.image.source="${APP_SOURCE}"
+
+ENV APP_VERSION="${APP_VERSION}" \
+    APP_REVISION="${APP_REVISION}" \
+    PORT=8080 \
+    PYTHONPATH=/opt/app/deps:/opt/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+COPY --from=build /opt/app /opt/app
+WORKDIR /opt/app
+USER 1001
+EXPOSE 8080
+CMD ["python3.12", "-m", "cart"]

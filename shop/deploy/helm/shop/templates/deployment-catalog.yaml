@@ -1,0 +1,36 @@
+# catalog – products, details and stock
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/name: catalog
+    {{- include "shop.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.catalog.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: catalog
+        {{- include "shop.labels" . | nindent 8 }}
+      annotations:              # ConfigMap changed -> new checksum -> rolling update
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-catalog.yaml") . | sha256sum }}
+    spec:
+      {{- include "shop.podSecurity" . | nindent 6 }}
+      containers:
+      - name: catalog
+        image: {{ include "shop.image" (list . "catalog") }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: catalog
+        resources:
+          {{- toYaml .Values.catalog.resources | nindent 10 }}
+        {{- include "shop.containerSecurity" . | nindent 8 }}
+        {{- include "shop.probes" . | nindent 8 }}

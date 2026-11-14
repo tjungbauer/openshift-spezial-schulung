@@ -1,0 +1,14 @@
+# Demo 11: your own overlay on top of dev – without touching the shop's files.
+# A kustomization folder may live anywhere; it only refers to the dev overlay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../../shop/deploy/overlays/dev
+replicas:
+- name: catalog
+  count: 2
+configMapGenerator:
+- name: catalog            # the plain ConfigMap of the base – no generator there
+  behavior: merge
+  literals:
+  - LOG_LEVEL=debug

@@ -1,0 +1,12 @@
+# Lab 5 – one Argo CD instance per student namespace (created by lab-05-setup.sh).
+# A user-defined instance manages only the namespace it runs in. The UI is reached
+# through the Route argocd-server; the password of the user admin is in the
+# Secret argocd-cluster (key admin.password).
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  server:
+    route:
+      enabled: true

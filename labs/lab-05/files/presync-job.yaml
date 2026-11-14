@@ -1,0 +1,24 @@
+# Runs BEFORE every sync of the dev overlay – the place for database
+# migrations or checks. Argo CD deletes the old Job before it creates a new one.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prepare
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: prepare
+        image: quay.io/nginx/nginx-unprivileged:1.29.1
+        command: ["sh", "-c", "echo 'PreSync: preparing the release (migrations, checks ...)'; date"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }

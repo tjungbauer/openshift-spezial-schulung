@@ -1,0 +1,20 @@
+# a client Pod with curl – created in both namespaces
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels: { app: client, openshift-example: "yes" }
+spec:
+  securityContext:                # PodSecurity "restricted" (see demo 01)
+    runAsNonRoot: true
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+  - name: client
+    image: registry.redhat.io/ubi9/ubi:9.9
+    command: ["sleep", "infinity"]
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 64Mi }
