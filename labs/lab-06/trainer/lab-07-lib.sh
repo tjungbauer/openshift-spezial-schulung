@@ -124,26 +124,46 @@ ensure_day2() {
     git -C "${SHOP_WORK}" remote add origin "${SHOP_REPO}"
     _commit_push "shop: base, components, overlays"
   fi
-  sed -e "s|<NS>|${NS}|g" -e "s|<REPO_URL>|${SHOP_REPO}|" "${APP_FILE}" | oc -n "${NS}" apply -f - >/dev/null
+  # only if missing – applying it again would switch auto-sync back on
+  oc -n "${NS}" get applications.argoproj.io shop-dev >/dev/null 2>&1 \
+    || sed -e "s|<NS>|${NS}|g" -e "s|<REPO_URL>|${SHOP_REPO}|" "${APP_FILE}" | oc -n "${NS}" apply -f - >/dev/null
   oc project "${SHOP_NS}" >/dev/null
-  wait_revision
-  wait_app
+  if autosync_on; then
+    wait_revision
+    wait_app
+  fi
+}
+
+autosync_on() {
+  [[ -n "$(oc -n "${NS}" get applications.argoproj.io shop-dev -o jsonpath='{.spec.syncPolicy.automated}' 2>/dev/null)" ]]
+}
+
+autosync_off() {   # quietly – used by _ensure
+  autosync_on || return 0
+  oc -n "${NS}" patch applications.argoproj.io shop-dev --type=json \
+    -p '[{"op": "remove", "path": "/spec/syncPolicy/automated"}]' >/dev/null
+}
+
+catalog_env() {   # catalog_env NAME – value of an env variable in the live Deployment
+  oc -n "${SHOP_NS}" get deployment catalog \
+    -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name==\"$1\")].value}" 2>/dev/null || true
 }
 
 # _ensure STEP – a single task needs the state of the tasks before it
+#   task 2-5: auto-sync off; from task 4 on: the admin token
 _ensure() {
   ensure_day2
-  if [[ $1 -ge 4 ]] && [[ ! -f "${SHOP_WORK}/overlays/dev/patch-catalog-lab.yaml" ]]; then
-    cp files/patch-catalog-lab.yaml "${SHOP_WORK}/overlays/dev/"
-    printf 'patches:\n- path: patch-catalog-lab.yaml\n' >> "${SHOP_WORK}/overlays/dev/kustomization.yaml"
-    _commit_push "dev: admin token for catalog (lab 7)"
-    wait_revision
+  [[ "$1" == 1 ]] && return 0
+  [[ "$1" == 6 ]] && return 0
+  autosync_off
+  if [[ "$1" != 2 && "$1" != 3 ]] && [[ "$(catalog_env ADMIN_TOKEN)" != lab-token ]]; then
+    oc -n "${SHOP_NS}" set env deployment/catalog ADMIN_TOKEN=lab-token >/dev/null
     oc -n "${SHOP_NS}" rollout status deployment/catalog --timeout=180s >/dev/null 2>&1 || true
   fi
   return 0
 }
 
-# the step after every push in the README
+# the refresh after the push in task 6
 REFRESH_CMD="oc -n \$NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite"
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -151,19 +171,26 @@ REFRESH_CMD="oc -n \$NS annotate applications.argoproj.io shop-dev argocd.argopr
 # ═══════════════════════════════════════════════════════════════════════════
 
 task1() {
-  section "Task 1 · Your starting point"
+  section "Task 1 · Your starting point – auto-sync off"
   _ensure 1
 
   run "oc -n \$NS get applications.argoproj.io shop-dev"
   run "oc get pods"
   run "echo https://\$(oc get route web -o jsonpath='{.spec.host}')"
+  run "oc -n \$NS get applications.argoproj.io shop-dev -o jsonpath='{.spec.syncPolicy}{\"\\n\"}'"
+  if autosync_on; then
+    run "oc -n \$NS patch applications.argoproj.io shop-dev --type=json -p '[{\"op\": \"remove\", \"path\": \"/spec/syncPolicy/automated\"}]'"
+  else
+    comment "Auto-sync is already off"
+  fi
+  run "oc -n \$NS get applications.argoproj.io shop-dev -o jsonpath='{.spec.syncPolicy}{\"\\n\"}'"
 
   discuss \
-    "The shop from Git - in its own namespace" \
+    "Argo CD only watches now" \
     "" \
-    "Application shop-dev in \$NS (next to Argo CD) -> objects in \$NS-shop." \
-    "From now on: no oc edit / scale / set - self heal undoes it." \
-    "Every change is a commit."
+    "Without automated: no self heal - oc set / patch / rollout undo stay." \
+    "Argo CD still compares and shows OutOfSync - it just does not act." \
+    "Fine for experiments, never for a real environment."
 }
 
 task2() {
@@ -186,20 +213,8 @@ task3() {
   section "Task 3 · Unready, not dead"
   _ensure 3
 
-  if [[ ! -f "${SHOP_WORK}/overlays/dev/patch-catalog-lab.yaml" ]]; then
-    show_file files/patch-catalog-lab.yaml
-    run "cp files/patch-catalog-lab.yaml \"\$SHOP_WORK/overlays/dev/\""
-    run "printf 'patches:\\n- path: patch-catalog-lab.yaml\\n' >> \"\$SHOP_WORK/overlays/dev/kustomization.yaml\""
-    run "oc kustomize \"\$SHOP_WORK/overlays/dev\" | grep -A1 ADMIN_TOKEN"
-    run "git -C \"\$SHOP_WORK\" add ."
-    run "git -C \"\$SHOP_WORK\" commit -m 'dev: admin token for catalog (lab 7)'"
-    run "git -C \"\$SHOP_WORK\" push"
-    run "${REFRESH_CMD}"
-    wait_revision
-    run "oc rollout status deployment/catalog --timeout=180s"
-  else
-    comment "The admin token is already in Git (patch-catalog-lab.yaml)"
-  fi
+  run "oc set env deployment/catalog ADMIN_TOKEN=lab-token"
+  run "oc rollout status deployment/catalog --timeout=180s"
 
   show_file files/fault.sh
   run "./files/fault.sh '{\"fail_ready\": true}'"
@@ -220,30 +235,23 @@ task3() {
     "Readiness decides about traffic - not about restarts" \
     "" \
     "READY 0/1, RESTARTS 0, EndpointSlice ready=false." \
-    "One replica: unready = nobody serves. Two: nobody notices." \
-    "shop-dev stays Synced - nothing in Git changed."
+    "One replica: unready = nobody serves. Two: nobody notices."
 }
 
 task4() {
   section "Task 4 · A wrong liveness probe"
   _ensure 4
 
-  run "diff files/patch-catalog-lab.yaml files/patch-catalog-typo.yaml"
-  run "cp files/patch-catalog-typo.yaml \"\$SHOP_WORK/overlays/dev/patch-catalog-lab.yaml\""
-  run "git -C \"\$SHOP_WORK\" commit -am 'dev: new liveness path'"
-  run "git -C \"\$SHOP_WORK\" push"
-  run "${REFRESH_CMD}"
-  wait_revision
+  run "oc patch deployment catalog -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"catalog\",\"livenessProbe\":{\"httpGet\":{\"path\":\"/health/livez\"}}}]}}}}'"
   wait_until "the first liveness restart" 180 "[[ \$(restarts) -ge 1 ]]" || true
   run "oc get pods -l ${SEL}"
   run "oc get events --field-selector reason=Unhealthy | grep -i liveness | tail -3"
   run "oc get events --field-selector reason=Killing | tail -3"
+  run "oc -n \$NS get applications.argoproj.io shop-dev"
   pause
 
-  run "git -C \"\$SHOP_WORK\" revert --no-edit HEAD"
-  run "git -C \"\$SHOP_WORK\" push"
-  run "${REFRESH_CMD}"
-  wait_revision
+  run "oc rollout history deployment/catalog"
+  run "oc rollout undo deployment/catalog"
   run "oc rollout status deployment/catalog --timeout=180s"
   run "oc get pods -l ${SEL}"
 
@@ -251,20 +259,15 @@ task4() {
     "A healthy app, killed by its own probe" \
     "" \
     "404 on /health/livez - 3 x 10 s - restart - again and again." \
-    "The rollout looked fine: readiness was ok." \
-    "Roll back with git revert - auto-sync stays on."
+    "The rollout looked fine: readiness was ok. shop-dev: OutOfSync." \
+    "oc rollout undo works now - with auto-sync on: git revert."
 }
 
-task5() {
-  section "Task 5 · A slow start"
-  _ensure 5
+task_slow() {
+  section "Task 5a · Bonus: a slow start"
+  _ensure slow
 
-  run "diff files/patch-catalog-lab.yaml files/patch-catalog-slow.yaml"
-  run "cp files/patch-catalog-slow.yaml \"\$SHOP_WORK/overlays/dev/patch-catalog-lab.yaml\""
-  run "git -C \"\$SHOP_WORK\" commit -am 'dev: catalog starts slowly'"
-  run "git -C \"\$SHOP_WORK\" push"
-  run "${REFRESH_CMD}"
-  wait_revision
+  run "oc set env deployment/catalog FAULT_STARTUP_DELAY_S=40"
   wait_until "the new Pod starting (0/1 next to 1/1)" 90 \
     "[[ \$(oc get pods -l ${SEL} --no-headers 2>/dev/null | wc -l) -ge 2 ]]" || true
   run "oc get pods -l ${SEL}"
@@ -273,10 +276,7 @@ task5() {
   run "oc get pods -l ${SEL}"
   pause
 
-  run "git -C \"\$SHOP_WORK\" revert --no-edit HEAD"
-  run "git -C \"\$SHOP_WORK\" push"
-  run "${REFRESH_CMD}"
-  wait_revision
+  run "oc rollout undo deployment/catalog"
   run "oc rollout status deployment/catalog --timeout=180s"
 
   discuss \
@@ -286,19 +286,17 @@ task5() {
     "Old Pod serves until the new one is ready - the shop stays up."
 }
 
-task6() {
-  section "Task 6 · Scale on load"
-  _ensure 6
+task5() {     # both bonus tasks
+  task_slow
+  task_hpa
+}
+
+task_hpa() {
+  section "Task 5b · Bonus: scale on load"
+  _ensure hpa
 
   show_file files/hpa-catalog.yaml
-  run "cp files/hpa-catalog.yaml \"\$SHOP_WORK/overlays/dev/\""
-  run "cp files/kustomization-dev-hpa.yaml \"\$SHOP_WORK/overlays/dev/kustomization.yaml\""
-  run "oc kustomize \"\$SHOP_WORK/overlays/dev\" | grep -E '^kind: HorizontalPodAutoscaler|replicas:'"
-  run "git -C \"\$SHOP_WORK\" add ."
-  run "git -C \"\$SHOP_WORK\" commit -m 'dev: HPA for catalog, replicas no longer in Git'"
-  run "git -C \"\$SHOP_WORK\" push"
-  run "${REFRESH_CMD}"
-  wait_revision
+  run "oc apply -f files/hpa-catalog.yaml"
   wait_until "the HPA at 2 replicas" 120 \
     "[[ \$(oc get hpa catalog -o jsonpath='{.status.currentReplicas}' 2>/dev/null) -ge 2 ]]" || true
   run "oc get hpa catalog"
@@ -310,20 +308,51 @@ task6() {
   run "oc get hpa catalog"
   run "oc get pods -l ${SEL}"
   run "oc adm top pods -l ${SEL}"
-  run "oc -n \$NS get applications.argoproj.io shop-dev"
   run "oc delete -f files/load.yaml"
 
   discuss \
     "The HPA owns the replica count - Git must not" \
     "" \
-    "The JSON patch removes spec.replicas: no fight with self heal." \
-    "Alternative: ignoreDifferences on /spec/replicas in the Application." \
+    "Git still says replicas: 1 - with self heal on, the two would fight." \
+    "Task 6 removes spec.replicas from Git (or: ignoreDifferences)." \
     "Load tools do not go to Git - oc apply, oc delete."
+}
+
+task6() {
+  section "Task 6 · Back to Git – auto-sync on"
+  _ensure 6
+
+  run "oc delete -f files/load.yaml --ignore-not-found"
+  show_file files/patch-catalog-lab.yaml
+  run "diff \"\$SHOP_WORK/overlays/dev/kustomization.yaml\" files/kustomization-dev-hpa.yaml || true"
+  run "cp files/patch-catalog-lab.yaml files/hpa-catalog.yaml \"\$SHOP_WORK/overlays/dev/\""
+  run "cp files/kustomization-dev-hpa.yaml \"\$SHOP_WORK/overlays/dev/kustomization.yaml\""
+  run "oc kustomize \"\$SHOP_WORK/overlays/dev\" | grep -E 'ADMIN_TOKEN|^kind: HorizontalPodAutoscaler'"
+  run "git -C \"\$SHOP_WORK\" add ."
+  run "git -C \"\$SHOP_WORK\" commit -m 'dev: admin token and HPA for catalog (lab 7)' || true"
+  run "git -C \"\$SHOP_WORK\" push"
+  run "oc -n \$NS patch applications.argoproj.io shop-dev --type=merge -p '{\"spec\":{\"syncPolicy\":{\"automated\":{\"prune\":true,\"selfHeal\":true}}}}'"
+  run "${REFRESH_CMD}"
+  wait_revision
+  wait_app
+  run "oc -n \$NS get applications.argoproj.io shop-dev"
+  wait_until "the HPA at 2 replicas" 120 \
+    "[[ \$(oc get hpa catalog -o jsonpath='{.status.currentReplicas}' 2>/dev/null) -ge 2 ]]" || true
+  run "oc get hpa catalog"
+  run "oc set env deployment/catalog --list | grep -E 'ADMIN_TOKEN|FAULT' || true"
+
+  discuss \
+    "Back to GitOps" \
+    "" \
+    "Admin token and HPA in Git, spec.replicas removed - self heal on again." \
+    "Argo CD compares only what is in Git: oc leftovers can survive." \
+    "Lab 8 continues from here."
 }
 
 bonus() {
   section "Bonus · two replicas, one unready"
   _ensure 6
+  [[ "$(oc -n "${SHOP_NS}" get hpa catalog -o name 2>/dev/null)" ]] || task6
   comment "With 2+ catalog replicas: only one Pod unready – the shop does not notice"
   run "POD=\$(oc get pods -l ${SEL} -o jsonpath='{.items[0].metadata.name}'); echo \$POD"
   run "./files/fault.sh '{\"fail_ready\": true}' \$POD"
@@ -352,11 +381,13 @@ check() {
   FAILS=0
   section "Checks for ${NS} / ${SHOP_NS}"
   expect "shop-dev Synced/Healthy" "Synced/Healthy" "$(app_state)"
-  expect "catalog has an admin token (task 3)" "lab-token" \
+  expect "auto-sync on again (task 6)" "true" \
+    "$(oc -n "${NS}" get applications.argoproj.io shop-dev -o jsonpath='{.spec.syncPolicy.automated.selfHeal}' 2>/dev/null)"
+  expect "catalog has an admin token (task 3/6)" "lab-token" \
     "$(_jp deployment/catalog '{.spec.template.spec.containers[0].env[?(@.name=="ADMIN_TOKEN")].value}')"
   expect "liveness path fixed (task 4)" "/health/live" \
     "$(_jp deployment/catalog '{.spec.template.spec.containers[0].livenessProbe.httpGet.path}')"
-  expect "no slow start left (task 5)" "" \
+  expect "no slow start left (task 5a)" "" \
     "$(_jp deployment/catalog '{.spec.template.spec.containers[0].env[?(@.name=="FAULT_STARTUP_DELAY_S")].value}')"
   expect "HPA catalog min 2" "2" "$(_jp hpa/catalog '{.spec.minReplicas}')"
   expect "HPA catalog max 6" "6" "$(_jp hpa/catalog '{.spec.maxReplicas}')"

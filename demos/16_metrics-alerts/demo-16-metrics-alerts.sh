@@ -86,7 +86,7 @@ step0() {
   run "oc rollout status deployment/load --timeout=120s"
   run "oc wait --for=condition=Ready pod/client --timeout=120s"
   comment "The load Pod calls catalog about 10 times a second"
-  show_file load.yaml
+  #show_file load.yaml
   comment "The raw text format – a counter and a histogram"
   run "oc exec client -- curl -s http://catalog:8080/metrics | grep -E '^shop_http_requests_total' | head -8"
   run "oc exec client -- curl -s http://catalog:8080/metrics | grep -E '^shop_http_request_duration_seconds_bucket.*/products\"' | head -12"
@@ -141,16 +141,6 @@ step2() {
   query "Error ratio (5xx share)" \
     "sum(rate(shop_http_requests_total{${API},status=~\"5..\"}[1m])) / sum(rate(shop_http_requests_total{${API}}[1m]))"
   pause
-
-  discuss \
-    "rate() for counters, histogram_quantile() for latency" \
-    "" \
-    "rate(x[1m])         per-second increase, averaged over 1 minute" \
-    "sum by (status)     add up all Pods, keep one line per status" \
-    "histogram_quantile  0.95 = 95 % of the requests were faster" \
-    "" \
-    "The 404 line is the load's 'does-not-exist' product - not an error" \
-    "of catalog. That is why the alert looks at 5xx only."
 }
 
 step3() {

@@ -218,15 +218,6 @@ step4() {
   run "oc get pods -l ${SEL}"
   comment "maxUnavailable 25 % of 2 = 0: no old Pod is stopped before a new one is ready"
   run "calls"
-  comment "progressDeadlineSeconds: 60 – the Deployment reports the stuck rollout"
-  run "oc rollout status deployment/catalog --timeout=90s"
-  run "oc get deployment catalog -o jsonpath='{.status.conditions[?(@.type==\"Progressing\")].reason}{\"\\n\"}'"
-  pause
-
-  comment "Without GitOps: undo. With Argo CD: git revert (module 05)"
-  run "oc rollout undo deployment/catalog"
-  run "oc rollout status deployment/catalog --timeout=120s"
-  run "oc get pods -l ${SEL}"
 
   discuss \
     "Readiness gates every rollout" \

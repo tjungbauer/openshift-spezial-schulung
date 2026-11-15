@@ -154,7 +154,7 @@ step2() {
   [[ "${MODE}" == "2" ]] && base_state
 
   comment "Jaeger as a stand-in for Tempo – OTLP in on 4318, UI on 16686"
-  show_file jaeger.yaml
+  #show_file jaeger.yaml
   run "oc apply -f jaeger.yaml"
   run "oc rollout status deployment/jaeger --timeout=180s"
   comment "The shop has OpenTelemetry built in – off until it knows where to send spans"

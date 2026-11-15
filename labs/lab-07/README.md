@@ -1,322 +1,253 @@
-# Lab 7 – Break it – and watch it heal (35 min)
+# Lab 8 – Metrics, alerts and logs (30 min)
 
-The shop runs from your Git repository (Day 2 start). Now you break catalog on purpose – through
-Git, the way a bad release would arrive – and watch what the probes, the Deployment and the
-HorizontalPodAutoscaler do about it.
+The shop has been exposing metrics since the Day 2 start – nobody looked at them yet. Now you
+check that Prometheus scrapes them, ask them questions with PromQL, put an alert into Git, make
+it fire – and find the log lines behind the alert.
 
 **You will learn**
 
-- what the three probes ask – and what OpenShift does when each one says "no"
-- that an unready Pod is taken out of the Service, not restarted
-- how a wrong liveness probe restarts a perfectly healthy container
-- how a startup probe protects a slow start – and a rollout protects the users
-- how an HPA adds replicas under load – and why Git must not own the replica count then
+- how a ServiceMonitor tells the user workload Prometheus what to scrape
+- how to check that a target is scraped – and why `up` is the first query to run
+- `rate()` for counters and `histogram_quantile()` for latency
+- how an alert travels: PrometheusRule in Git → pending → firing
+- how to get from an alert to the log lines – and to one request through two services
 
 **How to work through this lab**
 
-- Run every command from the folder `lab-07/`. Your shop repository is `$SHOP_WORK`
-  (`~/shop-gitops` from the Day 2 start); the commands write into it with `"$SHOP_WORK/…"`
-  and `git -C "$SHOP_WORK"` – you never change directories.
-- Every change to the shop is a **commit and push**, followed by a refresh of the Application.
-- `files/` contains everything you copy into your repository, and two lab tools:
-  `fault.sh` (switches a fault on in a catalog Pod) and `load.yaml` (a load generator).
+- Run every command from the folder `lab-08/`. Your shop repository is `$SHOP_WORK`
+(`~/shop-gitops`); the commands write into it with `"$SHOP_WORK/…"` and
+`git -C "$SHOP_WORK"` – you never change directories.
+- Changes to the shop go through Git: **commit, push, refresh**. Lab tools
+(`files/traffic.yaml`, `files/fault.sh`) are not part of the shop and do not go to Git.
+- The queries run in the web console: **Observe › Metrics** and **Observe › Alerting**, with
+your shop namespace selected. Keep a browser tab open next to the terminal.
 
 ## Before you start
 
-The Day 2 start must be done: `shop-dev` is `Synced` and `Healthy`
-(`labs/day2-start/README.md`).
+Lab 7 must be done, including task 6: `shop-dev` is `Synced` / `Healthy` with auto-sync on,
+catalog runs with 2 replicas (HPA) and an admin token.
 
 ```bash
-export NS=sbx-wsXX                      # your namespace – your Argo CD runs here
-export SHOP_NS=$NS-shop                 # the shop runs here
+export NS=sbx-wsXX                      # your namespace – the shop runs here
 export SHOP_WORK=~/shop-gitops          # your local copy of the shop repository
-oc project $SHOP_NS
+oc project $NS
 ```
 
-The command you will use after every push – Argo CD looks at Git now instead of in three
-minutes:
+The console pages of this lab *Observe > Metrics*:
 
 ```bash
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
+echo "$(oc whoami --show-console)/monitoring/query-browser?namespace=$NS"
+echo "$(oc whoami --show-console)/monitoring/alerts?namespace=$NS"
 ```
 
 ## Tasks
 
 | # | Task | Time |
 |---|---|---|
-| 1 | Your starting point | 3 min |
-| 2 | Read the probes | 4 min |
-| 3 | Unready, not dead | 8 min |
-| 4 | A wrong liveness probe | 7 min |
-| 5 | A slow start | 6 min |
-| 6 | Scale on load | 7 min |
+| 1 | The ServiceMonitors | 4 min |
+| 2 | Is it scraped? | 4 min |
+| 3 | Query it | 7 min |
+| 4 | An alert | 5 min |
+| 5 | Make it fire | 5 min |
+| 6 | Find the logs | 5 min |
 
 ---
 
-### 1 · Your starting point
+### 1 · The ServiceMonitors
 
-**Goal:** the shop runs, Argo CD manages it, and you can reach it.
+**Goal:** know what Prometheus scrapes in your namespace – and start some traffic, so there is
+something to see.
 
 ```bash
-oc -n $NS get applications.argoproj.io shop-dev
-oc get pods
-ROUTE=$(oc get route web -o jsonpath='{.spec.host}')
-echo https://$ROUTE
+oc get servicemonitor
+oc get servicemonitor catalog -o yaml | grep -A4 -E '^  (selector|endpoints):'
+oc get service catalog -o jsonpath='{.metadata.labels.app\.kubernetes\.io/name}  {.spec.ports[*].name}{"\n"}'
+cat "$SHOP_WORK/components/monitoring/kustomization.yaml"
 ```
 
-**Expected result:** `shop-dev` `Synced` / `Healthy`; five Pods `1/1 Running` (web, catalog,
-cart, orders, review); the shop opens in the browser. Keep the browser tab open – you will see
-catalog disappear and come back.
+The ServiceMonitors came with the dev overlay (component `monitoring`) – they are in your Git
+repository since the Day 2 start.
 
-> **What to notice:** from now on you change nothing with `oc edit`, `oc scale` or `oc set`
-> – self heal would undo it (lab 5). Changes go through Git.
+Now the traffic – about 5 requests per second through web, as a browser would ask:
+
+```bash
+cat files/traffic.yaml
+oc apply -f files/traffic.yaml
+oc rollout status deployment/traffic --timeout=120s
+```
+
+**Expected result:** four ServiceMonitors – `cart`, `catalog`, `orders`, `review`. Each selects
+the **Service** with the label `app.kubernetes.io/name: <name>` and scrapes its port **by name**
+(`http`), path `/metrics`, every 30 s. web has none – nginx exposes no metrics.
+
+> **What to notice:** a ServiceMonitor never names a Pod or a port number. It selects Services
+> by label and the port by name – Prometheus then scrapes **every Pod** behind that Service.
+> With two catalog replicas, that is two targets.
+
+---
+
+### 2 · Is it scraped?
+
+**Goal:** prove that Prometheus reaches every target – before you trust any graph.
+
+Open **Observe › Metrics** (the first link above), select your shop namespace and run:
+
+```text
+up
+```
+
+Then, to see what one target delivers:
+
+```text
+shop_http_requests_total{job="catalog"}
+```
+
+**Expected result:** `up` returns **five** series with the value `1`: `job="catalog"` twice (two
+replicas, one per Pod), `cart`, `orders` and `review` once. `shop_http_requests_total` lists one
+series per Pod, method, endpoint and status – for example `endpoint="/products/{product_id}"`,
+`status="200"`.
+
+> **What to notice:** `up` is written by Prometheus itself for every target – `1` scraped, `0`
+> failed. A target that is missing completely means the ServiceMonitor selects nothing (label or
+> port name wrong). A target with `0` means it was found but could not be scraped (NetworkPolicy,
+> wrong path). The shop's NetworkPolicies have a rule `allow-from-monitoring` for that.
 
 **If it does not work**
 
-- `shop-dev` not found – the Day 2 start is missing, or you are looking in the wrong namespace
-  (`-n $NS`).
-- `OutOfSync` / `Degraded` – open the Application in the Argo CD UI; the event list says why.
+- No result at all – wrong namespace selected at the top of the page, or no ServiceMonitors
+(task 1).
+- `up` is `0` – `oc get networkpolicy allow-from-monitoring`; the shop's default deny blocks
+Prometheus without it.
+- "Forbidden" – user workload monitoring is not enabled on the cluster (ask the trainer).
 
 ---
 
-### 2 · Read the probes
+### 3 · Query it
 
-**Goal:** know what each probe of catalog asks, how often, and what happens on "no".
+**Goal:** turn counters and histograms into answers: how many requests per second, how many
+fail, how fast is catalog.
 
-```bash
-oc get deployment catalog -o yaml | grep -A8 -E '^ +(startupProbe|readinessProbe|livenessProbe):'
+Paste the queries one by one into **Observe › Metrics**. Requests per second, by status:
+
+```text
+sum by (status) (rate(shop_http_requests_total{job="catalog",endpoint!~"/health/.*|/metrics"}[1m]))
 ```
 
-**What happens:** the live Deployment – exactly what Argo CD applied from
-`$SHOP_WORK/base/catalog/deployment.yaml`. Read path, `periodSeconds` and `failureThreshold`
-of each probe.
+The same, by endpoint:
 
-**Expected result:**
+```text
+sum by (endpoint) (rate(shop_http_requests_total{job="catalog",endpoint!~"/health/.*|/metrics"}[1m]))
+```
 
-| Probe | Question | On "no" (failureThreshold reached) |
-|---|---|---|
-| startup | has the app started? | after 60 s (30 x 2 s): restart. Until it succeeds, the other two do not run |
-| readiness | can it serve right now? | out of the Service – **no** restart |
-| liveness | is the process stuck? | restart of the container |
+The p95 latency in seconds – 95 % of the requests were faster than this:
 
-> **What to notice:** `/health/live` of the shop never checks other services – a restart does
-> not fix a database that is down. `/health/ready` does check what catalog needs.
+```text
+histogram_quantile(0.95, sum by (le) (rate(shop_http_request_duration_seconds_bucket{job="catalog",endpoint!~"/health/.*|/metrics"}[2m])))
+```
+
+The error ratio – the share of 5xx answers:
+
+```text
+sum(rate(shop_http_requests_total{job="catalog",status=~"5..",endpoint!~"/health/.*|/metrics"}[1m])) / sum(rate(shop_http_requests_total{job="catalog",endpoint!~"/health/.*|/metrics"}[1m]))
+```
+
+**Expected result:** about 5 requests per second with `status="200"`, split between `/products`
+and `/products/{product_id}`; p95 a few milliseconds; the error ratio returns **no data** – there
+are no 5xx answers yet, so the numerator is empty.
+
+> **What to notice:** a counter only goes up – `rate(x[1m])` makes it "per second, averaged over
+> one minute". `sum by (…)` adds up both Pods. `endpoint!~"/health/.*|/metrics"` leaves out the
+> probes and the scrapes: they are counted too, never fail and are never slow – they would hide
+> what your users see.
 
 ---
 
-### 3 · Unready, not dead
+### 4 · An alert
 
-**Goal:** make catalog unready and see who notices – the Service yes, the kubelet's restart no.
-
-The fault switch needs an admin token in catalog – a patch in your dev overlay:
+**Goal:** an alert for catalog in Git: more than 5 % of the calls fail for 1 minute.
 
 ```bash
-cat files/patch-catalog-lab.yaml
-cp files/patch-catalog-lab.yaml "$SHOP_WORK/overlays/dev/"
-printf 'patches:\n- path: patch-catalog-lab.yaml\n' >> "$SHOP_WORK/overlays/dev/kustomization.yaml"
-oc kustomize "$SHOP_WORK/overlays/dev" | grep -A1 ADMIN_TOKEN
-git -C "$SHOP_WORK" add .
-git -C "$SHOP_WORK" commit -m "dev: admin token for catalog (lab 7)"
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-oc rollout status deployment/catalog --timeout=180s
+cat files/prometheusrule-catalog.yaml
+
+oc apply -f files/prometheusrule-catalog.yaml -n $NS
+oc get prometheusrule
 ```
 
-The `printf` appends a `patches:` list to the end of the dev kustomization – the shop's dev
-overlay has none yet.
+Open **Observe › Alerting** (the second link above) and switch to the tab **Alerting rules**.
 
-Now the fault – catalog answers `/health/ready` with 503 from now on:
+**Expected result:** apart from the comment at the top, the `diff` shows one added line:
+`- prometheusrule-catalog.yaml`.
+`oc get prometheusrule` lists `catalog`; in the console both rules – `CatalogErrorRateHigh` and
+`CatalogSlow` – appear within a minute, state **inactive**.
+
+> **What to notice:** the expression of `CatalogErrorRateHigh` is your error-ratio query from
+> task 3 plus `> 0.05`. `for: 1m` is the protection against noise: the expression must be true
+> for a full minute before anybody is alerted. The rule does not name the namespace – user
+> workload monitoring adds it, a rule only ever sees its own namespace.
+
+**If it does not work**
+
+- `oc get prometheusrule` is empty – `shop-dev` not synced yet: refresh again, check
+`oc -n $NS get applications.argoproj.io shop-dev`.
+- The rule is missing in the console – the console needs up to a minute; check the namespace
+selection.
+
+---
+
+### 5 · Make it fire
+
+**Goal:** 30 % of the catalog calls fail – watch the alert go from inactive to pending to
+firing.
 
 ```bash
 cat files/fault.sh
-./files/fault.sh '{"fail_ready": true}'
-oc get pods -l app.kubernetes.io/name=catalog -w          # READY 0/1 after ~10 s – Ctrl-C
-oc get endpointslice -l kubernetes.io/service-name=catalog \
-  -o jsonpath='{range .items[*].endpoints[*]}{.targetRef.name}  ready={.conditions.ready}{"\n"}{end}'
-oc get events --field-selector reason=Unhealthy | tail -3
+./files/fault.sh '{"error_rate": 0.3}'
 ```
 
-Reload the shop in the browser. Then switch the fault off again:
+Watch **Observe › Alerting**, and the requests by status from task 3 in **Observe › Metrics**.
+Reload the shop in the browser a few times, too. After the alert has been **firing** for a
+moment, switch the fault off again:
 
 ```bash
-./files/fault.sh '{"fail_ready": false}'
-oc get pods -l app.kubernetes.io/name=catalog -w          # back to 1/1 – Ctrl-C
+./files/fault.sh '{"error_rate": 0}'
 ```
 
-**What happens:** `fault.sh` runs a few lines of Python **inside** the catalog container
-(`oc exec`) and calls `POST /admin/fault` on `localhost` with the container's own token – no
-Route and no NetworkPolicy in the way, and it works while the Pod is unready. The readiness
-probe fails twice (2 x 5 s), the kubelet sets the Pod to not ready, the EndpointSlice marks it
-`ready=false` – the Service stops sending traffic.
+**Expected result:** `fault.sh` prints the new fault settings once per catalog Pod. The `503`
+line appears in the status graph within a minute. `CatalogErrorRateHigh` turns **pending** after
+about one minute and **firing** about one minute later, with the description "…% of the catalog
+API calls answered with 5xx". In the shop, some product lists fail to load. After the fault is
+off, the alert resolves within two minutes.
 
-**Expected result:** `READY 0/1`, `RESTARTS 0`; the EndpointSlice says `ready=false`; the events
-show `Readiness probe failed: HTTP probe failed with statuscode: 503`. The shop shows that catalog
-is unreachable – with **one** replica, unready means: nobody serves. After switching off: `1/1`,
-the products are back.
-
-> **What to notice:** no restart – readiness only decides about traffic. With two replicas the
-> users would not have noticed anything (demo 14). The Application stays `Synced`: nothing
-> in Git changed.
+> **What to notice:** pending means "the expression is true, `for:` has not passed yet" – only
+> firing alerts go to the Alertmanager. The alert describes a **symptom** your users feel
+> (failed calls), not a cause (CPU, a Pod restart). That is what alerts are for – the cause is
+> what you look for next, in the logs.
 
 **If it does not work**
 
-- `fault.sh` prints `admin endpoint disabled (ADMIN_TOKEN not set)` – the new Pod with the token
-  is not running yet: `oc rollout status deployment/catalog`, then again.
-- `exec: "python3.12": executable file not found` – catalog runs an unexpected image; ask the
-  trainer.
-- `printf` was run twice – `patches:` is twice in the kustomization; `oc kustomize` fails. Remove
-  one block in `"$SHOP_WORK/overlays/dev/kustomization.yaml"`.
+- `fault.sh` answers `401 invalid admin token` – the admin token of lab 7 is missing:
+`oc get deployment catalog -o yaml | grep -A1 ADMIN_TOKEN`.
+- The alert stays inactive – is there traffic? `oc get deployment traffic`; the 503 line must
+show in task 3's status query.
 
 ---
 
-### 4 · A wrong liveness probe
+### 6 · Find the logs
 
-**Goal:** see what a small mistake in the liveness probe does to a healthy application.
+**Goal:** from the alert to the log lines – and from one failed call in catalog to the same
+request in web.
 
-The "new release": the same patch, plus a typo in the liveness path (`/health/livez`):
-
-```bash
-diff files/patch-catalog-lab.yaml files/patch-catalog-typo.yaml
-cp files/patch-catalog-typo.yaml "$SHOP_WORK/overlays/dev/patch-catalog-lab.yaml"
-git -C "$SHOP_WORK" commit -am "dev: new liveness path"
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-oc get pods -l app.kubernetes.io/name=catalog -w          # watch RESTARTS for ~2 minutes – Ctrl-C
-oc get events --field-selector reason=Unhealthy | grep -i liveness | tail -3
-oc get events --field-selector reason=Killing | tail -3
-```
-
-**What happens:** the rollout succeeds – readiness is fine. 30 s later (3 x 10 s) the liveness
-probe has failed three times with 404, the kubelet kills the container and starts it again. The
-startup probe runs first, then liveness fails again …
-
-**Expected result:** `RESTARTS` goes up every ~40 s; after a few restarts the status shows
-`CrashLoopBackOff` between the attempts. Events: `Liveness probe failed: HTTP probe failed with
-statuscode: 404` and `Container catalog failed liveness probe, will be restarted`. The shop loses
-catalog for a few seconds at every restart.
-
-Roll back – the GitOps way:
+The shop writes one JSON line per request to stdout. The 503 answers of the last ten minutes:
 
 ```bash
-git -C "$SHOP_WORK" revert --no-edit HEAD
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-oc rollout status deployment/catalog --timeout=180s
-oc get pods -l app.kubernetes.io/name=catalog            # a new Pod, RESTARTS 0
+oc logs -l app.kubernetes.io/name=catalog --tail=-1 --since=10m --prefix | grep '"status": 503' | tail -3
 ```
-
-> **What to notice:** nothing was wrong with the application – only with the question the
-> kubelet asked. A liveness probe that fails for the wrong reason turns a healthy app into a
-> restart loop. Keep it simple; never check dependencies in it.
-
----
-
-### 5 · A slow start
-
-**Goal:** see how the startup probe and the rolling update handle a release that needs 40 s to
-start.
-
-```bash
-diff files/patch-catalog-lab.yaml files/patch-catalog-slow.yaml
-cp files/patch-catalog-slow.yaml "$SHOP_WORK/overlays/dev/patch-catalog-lab.yaml"
-git -C "$SHOP_WORK" commit -am "dev: catalog starts slowly"
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-oc get pods -l app.kubernetes.io/name=catalog -w          # ~1 minute – Ctrl-C
-oc get events --field-selector reason=Unhealthy | grep -i startup | tail -3
-```
-
-Reload the shop during the minute.
-
-**What happens:** `FAULT_STARTUP_DELAY_S=40` makes `/health/started` answer 503 for 40 s. The
-startup probe allows 60 s (30 x 2 s), so nothing is killed; readiness and liveness wait. The
-rolling update keeps the old Pod until the new one is ready.
-
-**Expected result:** two catalog Pods for about 40 s – the old one `1/1`, the new one `0/1`
-`Running`, `RESTARTS 0`; then the old one terminates. Events: `Startup probe failed … 503`. The
-shop works the whole time.
-
-Undo the slow start:
-
-```bash
-git -C "$SHOP_WORK" revert --no-edit HEAD
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-```
-
-> **What to notice:** the startup probe is the budget for a slow start – without it, a liveness
-> probe that asks too early kills the app before it is up (demo 14). And readiness gates the
-> rollout: the old version serves until the new one is ready.
-
----
-
-### 6 · Scale on load
-
-**Goal:** let a HorizontalPodAutoscaler run catalog with 2–6 replicas at 60 % of its CPU request
-– and take the replica count out of Git.
-
-```bash
-cat files/hpa-catalog.yaml
-cat files/kustomization-dev-hpa.yaml
-cp files/hpa-catalog.yaml "$SHOP_WORK/overlays/dev/"
-cp files/kustomization-dev-hpa.yaml "$SHOP_WORK/overlays/dev/kustomization.yaml"
-oc kustomize "$SHOP_WORK/overlays/dev" | grep -E '^kind: HorizontalPodAutoscaler|replicas:'
-git -C "$SHOP_WORK" add .
-git -C "$SHOP_WORK" commit -m "dev: HPA for catalog, replicas no longer in Git"
-git -C "$SHOP_WORK" push
-oc -n $NS annotate applications.argoproj.io shop-dev argocd.argoproj.io/refresh=normal --overwrite
-oc get hpa catalog -w                                     # REPLICAS 2 – Ctrl-C
-```
-
-The load generator is a lab tool, not part of the shop – it does **not** go to Git:
-
-```bash
-cat files/load.yaml
-oc apply -f files/load.yaml
-oc get hpa catalog -w                                     # 2-3 minutes – Ctrl-C
-oc get pods -l app.kubernetes.io/name=catalog
-oc adm top pods -l app.kubernetes.io/name=catalog
-```
-
-Stop the load:
-
-```bash
-oc delete -f files/load.yaml
-```
-
-**What happens:** the new kustomization adds `hpa-catalog.yaml` and a JSON patch that **removes**
-`spec.replicas` from catalog: Git no longer says how many replicas there are, the HPA does. The
-load Pods (2 x 4 curl loops) call catalog directly – the second object in `load.yaml` is a
-NetworkPolicy that lets them in. CPU utilisation = usage / request (50m); above 60 % the HPA
-adds replicas.
-
-**Expected result:** the HPA starts at 2 replicas, `TARGETS` climbs above `60%`, `REPLICAS` goes
-up to 4–6 within a few minutes; `shop-dev` stays `Synced`. After the load stops, the HPA scales
-back to 2 – after about five minutes (scale-down stabilisation window).
-
-> **What to notice:** with `replicas: 1` still in Git, self heal and the HPA would fight –
-> one sets 1, the other 2. Either remove the field from Git (as here) or ignore it in the
-> Application (`ignoreDifferences` on `/spec/replicas`, module 05 quiz).
-
-**If it does not work**
-
-- `TARGETS <unknown>/60%` – metrics need a minute; `oc describe hpa catalog` shows the reason.
-- The HPA stays at 2 – the load Pods cannot reach catalog: `oc get networkpolicy
-  allow-load-to-catalog`, `oc logs deploy/load` (empty is fine; errors are not).
-
----
-
-## Done early? Bonus
-
-- **Graceful shutdown under load:** keep the load running, open a second terminal with
-  `ROUTE=$(oc get route web -o jsonpath='{.spec.host}')`, then
-  `while true; do curl -s -o /dev/null -w '%{http_code} ' https://$ROUTE/api/catalog/products; done`
-  and trigger a rollout through Git (any change in `patch-catalog-lab.yaml`). Any non-200? Then
-  add a `lifecycle.preStop` with `sleep 5` to the catalog container in the patch – and compare.
-- **Two replicas, one unready:** with the HPA at 2+ replicas, run task 3 again with a Pod name:
-  `./files/fault.sh '{"fail_ready": true}' <pod>` – does the shop notice?
 
 ## Cleanup
 
-Nothing to clean up – lab 8 continues with this state. If you want catalog without the admin
-token again: remove `patch-catalog-lab.yaml` from the `patches:` list, commit, push.
+Stop the traffic – the alerts stay in Git, lab 9 continues with this state:
+
+```bash
+./files/fault.sh '{"error_rate": 0, "delay_ms": 0}'
+oc delete -f files/traffic.yaml
+```

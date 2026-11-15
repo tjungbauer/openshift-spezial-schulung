@@ -66,7 +66,7 @@ oc delete deployment,service,route,configmap,pdb -l app.kubernetes.io/part-of=we
 
 ---
 
-### 1 · Push the website to Git
+### 1 · Push the website to Git - OR USE PUBLIC REPO
 
 **Goal:** the base, the overlays and the component of lab 4 in your Git repository.
 
@@ -118,41 +118,16 @@ again empty, or ask the trainer.
 
 ### 2 · Your Argo CD – and an Application for dev
 
-**Goal:** log in to your Argo CD and let it deploy `overlays/dev`.
-
-Your Argo CD runs in your namespace. Its URL and the password of the user `admin`:
-
-```bash
-ARGOCD=$(oc get route argocd-server -o jsonpath='{.spec.host}')
-echo https://$ARGOCD
-oc extract secret/argocd-cluster --keys=admin.password --to=-
-```
-
-Open the URL, log in as `admin` with that password.
-
-Your repository is private – Argo CD needs read access. A Secret with the label
-`argocd.argoproj.io/secret-type=repository` tells it the credentials for this URL:
-
-```bash
-oc create secret generic website-gitops-repo \
-  --from-literal=type=git --from-literal=url="$REPO_URL" \
-  --from-literal=username="$GIT_USER" --from-literal=password="$GIT_TOKEN"
-oc label secret website-gitops-repo argocd.argoproj.io/secret-type=repository
-```
+**Goal:** log in to your Argo CD and let it deploy `shop/deploy/overlays/dev`.
 
 Now the Application – read it first, then fill in your namespace and URL and apply it:
 
 ```bash
 cat application-dev.yaml
-sed -e "s|<NS>|$NS|g" -e "s|<REPO_URL>|$REPO_URL|" application-dev.yaml | oc apply -f -
-oc get applications.argoproj.io
-oc get deployment,service,route
 ```
 
-**What happens:** the Application lives in your namespace, next to your Argo CD – only this
-instance sees it. Argo CD renders `overlays/dev` from the branch `main` (Kustomize, detected
-by the `kustomization.yaml`) and applies the result to your namespace. `automated` syncs every
-change in Git, `prune` deletes what disappears from Git, `selfHeal` repairs manual changes.
+**What happens:** the Application when created via UI lives in "gitops-application" namespace.  
+
 
 **Expected result:** after a few seconds `website-dev` shows `Synced` and `Healthy`;
 `dev-website` runs. In the UI: the Application tile, click it – the resource tree. Open the
@@ -268,61 +243,9 @@ everything without an annotation is wave 0; wave 1 (the Route) starts when wave 
 
 ---
 
-### 5 · Promote to prod – by digest
-
-**Goal:** prod runs exactly the image that was tested in dev – pinned by its digest, not by a
-tag that could be pushed again.
-
-The digest of the image the dev Pod really runs:
-
-```bash
-DIGEST=$(oc get pod -l app.kubernetes.io/name=website,env=dev \
-  -o jsonpath='{.items[0].status.containerStatuses[0].imageID}' | cut -d@ -f2)
-echo "$DIGEST"                               # sha256:…
-```
-
-Pin it in the prod overlay (no quotes around `EOF` – `$DIGEST` is filled in):
-
-```bash
-cat >> "$WORK/overlays/prod/kustomization.yaml" <<EOF
-images:
-- name: quay.io/nginx/nginx-unprivileged
-  digest: ${DIGEST}
-EOF
-oc kustomize "$WORK/overlays/prod" | grep 'image:'
-git -C "$WORK" add .
-git -C "$WORK" commit -m "prod: promote the dev image by digest"
-git -C "$WORK" push
-```
-
-And the Application for prod:
-
-```bash
-sed -e "s|<NS>|$NS|g" -e "s|<REPO_URL>|$REPO_URL|" application-prod.yaml | oc apply -f -
-oc get applications.argoproj.io
-oc get deployment prod-website -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
-```
-
-**What happens:** `imageID` in the Pod status is the image the node pulled – with its digest.
-The `images:` entry with `digest` makes Kustomize write `image@sha256:…` instead of
-`image:1.29.1`. The second Application deploys `overlays/prod`: two replicas, resources, the
-PodDisruptionBudget.
-
-**Expected result:** `website-prod` `Synced` / `Healthy`; the image of `prod-website` ends with
-`@sha256:…` – the same digest as `$DIGEST`.
-
-> **What to notice:** promotion is a commit that changes one line in the prod overlay – it can
-> be reviewed and reverted. Nothing is rebuilt for prod.
-
-**If it does not work**
-
-- `DIGEST` is empty – no dev Pod is running: `oc get pods -l env=dev`.
-- `images` appears twice in the kustomization – you ran the `cat >>` twice; open
-`"$WORK/overlays/prod/kustomization.yaml"` and delete one block.
-
 ---
 
-### 6 · Break it – roll back with `git revert`
+### 5 · Break it – roll back with `git revert`
 
 **Goal:** a broken release in dev – and the roll back the GitOps way.
 
@@ -365,13 +288,3 @@ bad commit and its revert.
 > **What to notice:** the rolling update protected you – the old Pod kept serving. The roll
 > back is a reviewed commit, and auto-sync stays on. `oc rollout undo` would be overwritten by
 > self heal within seconds – try it if you do not believe it.
-
-## Cleanup
-
-The Applications have no deletion finalizer – deleting them leaves the objects. Delete both:
-
-```bash
-oc delete applications.argoproj.io website-dev website-prod
-oc delete deployment,service,route,configmap,pdb,job -l 'env in (dev,prod)'
-oc delete secret website-gitops-repo
-```

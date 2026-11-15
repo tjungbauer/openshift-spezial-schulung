@@ -86,7 +86,6 @@ step0() {
   comment "The PV was created for us – and it is tied to one zone"
   run "PV=\$(oc get pvc data -o jsonpath='{.spec.volumeName}'); echo \$PV"
   run "oc get pv \$PV -o jsonpath='{.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0]}{\"\\n\"}'"
-  run "oc get pod writer -o jsonpath='{.spec.nodeName}{\"\\n\"}'"
 
   discuss \
     "PVC → StorageClass → PV" \
@@ -138,38 +137,38 @@ step2() {
 }
 
 step3() {
-  section "3 · The RWO trap – a rolling update onto another node"
+  section "3 · The RWO trap – a rolling update onto another node - SKIPPED"
 
-  show_file deployment.yaml
-  run "oc apply -f deployment.yaml"
-  run "oc rollout status deployment/app --timeout=180s"
-  local node other
-  node="$(oc get pod -l app.kubernetes.io/name=app -o jsonpath='{.items[0].spec.nodeName}')"
-  other="$(other_node "${node}")"
-  if [[ -z "${other}" ]]; then
-    warn "No second schedulable node in the zone of ${node} – step 3 needs one. Skipped."
-    return 0
-  fi
-  export OTHER="${other}"
-  comment "The Pod runs on ${node}. A new version that must run on ${other} – same zone:"
-  run "oc patch deployment app --type=merge -p '{\"spec\":{\"template\":{\"spec\":{\"nodeSelector\":{\"kubernetes.io/hostname\":\"'\$OTHER'\"}}}}}'"
-  info "   waiting 40 s – RollingUpdate starts the new Pod while the old one still holds the disk ..."
-  sleep 40
-  run "oc get pods -l app.kubernetes.io/name=app -o wide"
-  run "oc get events --field-selector reason=FailedAttachVolume | tail -2"
-  pause
+#  show_file deployment.yaml
+#  run "oc apply -f deployment.yaml"
+#  run "oc rollout status deployment/app --timeout=180s"
+#  local node other
+#  node="$(oc get pod -l app.kubernetes.io/name=app -o jsonpath='{.items[0].spec.nodeName}')"
+#  other="$(other_node "${node}")"
+#  if [[ -z "${other}" ]]; then
+#    warn "No second schedulable node in the zone of ${node} – step 3 needs one. Skipped."
+#    return 0
+#  fi
+#  export OTHER="${other}"
+#  comment "The Pod runs on ${node}. A new version that must run on ${other} – same zone:"
+#  run "oc patch deployment app --type=merge -p '{\"spec\":{\"template\":{\"spec\":{\"nodeSelector\":{\"kubernetes.io/hostname\":\"'\$OTHER'\"}}}}}'"
+#  info "   waiting 40 s – RollingUpdate starts the new Pod while the old one still holds the disk ..."
+#  sleep 40
+#  run "oc get pods -l app.kubernetes.io/name=app -o wide"
+#  run "oc get events --field-selector reason=FailedAttachVolume | tail -2"
+#  pause
 
-  comment "The fix: Recreate – the old Pod goes first, then the disk can move"
-  run "oc patch deployment app --type=merge -p '{\"spec\":{\"strategy\":{\"type\":\"Recreate\",\"rollingUpdate\":null}}}'"
-  run "oc rollout status deployment/app --timeout=300s"
-  run "oc get pods -l app.kubernetes.io/name=app -o wide"
+#  comment "The fix: Recreate – the old Pod goes first, then the disk can move"
+#  run "oc patch deployment app --type=merge -p '{\"spec\":{\"strategy\":{\"type\":\"Recreate\",\"rollingUpdate\":null}}}'"
+#  run "oc rollout status deployment/app --timeout=300s"
+#  run "oc get pods -l app.kubernetes.io/name=app -o wide"
 
-  discuss \
-    "RWO = one NODE - and a rolling update needs two Pods" \
-    "" \
-    "Multi-Attach: the disk is still attached to the old node." \
-    "Recreate: a short downtime, but no deadlock - recommended for EBS." \
-    "Databases: a StatefulSet. More replicas: RWX or one PVC each."
+#  discuss \
+#    "RWO = one NODE - and a rolling update needs two Pods" \
+#    "" \
+#    "Multi-Attach: the disk is still attached to the old node." \
+#    "Recreate: a short downtime, but no deadlock - recommended for EBS." \
+#    "Databases: a StatefulSet. More replicas: RWX or one PVC each."
 }
 
 step4() {

@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: <REPO_URL>
     targetRevision: main
-    path: overlays/prod
+    path: shop/deploy/overlays/prod
   destination:
     server: https://kubernetes.default.svc   # the cluster Argo CD runs in
     namespace: <NS>

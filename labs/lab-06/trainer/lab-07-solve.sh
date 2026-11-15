@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
 #  Lab 07 – Break it – and watch it heal: automatic solution and checks
-#  Run:     ./lab-07-solve.sh [-n|--namespace NAME] [TASK|bonus|check|cleanup]
+#  Run:     ./lab-07-solve.sh [-n|--namespace NAME] [TASK|slow|hpa|bonus|check|cleanup]
 #  Expects: oc logged in, git; GIT_REPO_URL, GIT_USERNAME, GIT_TOKEN
 #
-#     (no argument)   all tasks + checks
-#     TASK            run only task n (1-6) – earlier tasks are filled in quietly
+#     (no argument)   all tasks incl. the bonus tasks 5a + 5b, then checks
+#     TASK            run only task n (1-6; 5 = both bonus tasks) – earlier tasks are filled in quietly
+#     slow, hpa       run only task 5a (slow start) / 5b (HPA under load)
 #     bonus           two replicas, one unready
 #     check           PASS / FAIL per item (exit code = number of failures)
 #     cleanup         delete what the lab created
@@ -25,9 +26,10 @@ show_file() { :; }
 discuss()   { :; }
 pause()     { :; }
 
-DEMO_USAGE_ARGS="[TASK|bonus|check|cleanup]"
-DEMO_USAGE_EXTRA="  (none)                 all tasks + checks
-  TASK                   run only task n (1-6)
+DEMO_USAGE_ARGS="[TASK|slow|hpa|bonus|check|cleanup]"
+DEMO_USAGE_EXTRA="  (none)                 all tasks incl. the bonus tasks 5a + 5b, then checks
+  TASK                   run only task n (1-6; 5 = both bonus tasks)
+  slow, hpa              run only task 5a / 5b
   bonus                  two replicas, one unready
   check                  PASS / FAIL per item (exit code = number of failures)
   cleanup                delete what the lab created
@@ -39,7 +41,7 @@ parse_demo_args "$@"
 
 MODE="${DEMO_ARGS[0]:-all}"
 case "${MODE}" in
-  all|[1-6]|bonus|check|cleanup) ;;
+  all|[1-6]|slow|hpa|bonus|check|cleanup) ;;
   *) demo_usage >&2; die "Unknown argument: ${MODE}" ;;
 esac
 
@@ -51,6 +53,7 @@ case "${MODE}" in
     check
     ;;
   [1-6])   "task${MODE}" ;;
+  slow|hpa) "task_${MODE}" ;;
   bonus)   bonus ;;
   check)   check ;;
   cleanup) cleanup; success "Cleaned up." ;;
