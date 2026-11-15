@@ -1,0 +1,16 @@
+# Demo 18 – the shop in ambient mode (../ambient) plus a waypoint, and every Service of the shop
+# sends its traffic through it (label istio.io/use-waypoint on the Service).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../ambient
+- waypoint.yaml
+
+patches:
+- target:
+    kind: Service
+    labelSelector: app.kubernetes.io/part-of=demo-18
+  patch: |-
+    - op: add
+      path: /metadata/labels/istio.io~1use-waypoint
+      value: waypoint

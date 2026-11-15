@@ -23,6 +23,8 @@ Guided demos for the OpenShift trainings (01–06 basics refresher, 10–12 adva
 | 15 | [Requests, limits and the HPA](15_resources-hpa/) | `demo-15-resources-hpa.sh` | requests vs. usage, CPU throttling, HPA scale-out, scale-in stabilisation |
 | 16 | [From metric to alert](16_metrics-alerts/) | `demo-16-metrics-alerts.sh` | /metrics, ServiceMonitor, PromQL rate and histogram_quantile, PrometheusRule pending/firing |
 | 17 | [One request, three signals](17_logs-traces/) | `demo-17-logs-traces.sh` | JSON logs, request id across web/orders/catalog, OpenTelemetry on with one env var, the trace in Jaeger |
+| 18 | [The shop joins the mesh](18_mesh-onboarding/) | `demo-18-mesh-onboarding.sh` | cluster-admin: mesh in ambient mode, namespace in scope · you: ambient label in the Pod template (still 1/1), a waypoint for L7, Kiali |
+| 19 | [Spread and PDB at work](19_ha-pdb/) | `demo-19-ha-pdb.sh` | one replica = outage, topologySpreadConstraints, PDB refuses the second eviction, rollout under load without errors |
 
 ## Prerequisites
 
