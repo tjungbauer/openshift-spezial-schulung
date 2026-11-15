@@ -100,11 +100,7 @@ step1() {
   run "helm template shop \$CHART -f \$DEV | grep '^kind:' | sort | uniq -c"
 
   discuss \
-    "helm template renders locally - nothing reaches the cluster" \
-    "" \
-    "No ServiceMonitor in the list? It is only rendered when the cluster" \
-    "has the API (.Capabilities) - helm template does not ask it." \
-    "  helm template ... --api-versions monitoring.coreos.com/v1"
+    "helm template renders locally - nothing reaches the cluster"
 }
 
 step2() {
@@ -115,13 +111,6 @@ step2() {
   run "helm list"
   run "oc get deployment,service,route,pvc -l app.kubernetes.io/instance=shop"
   run "echo \$(oc get route web -o jsonpath='https://{.spec.host}')"
-
-  discuss \
-    "One command, the whole shop - and NOTES.txt tells you what next" \
-    "" \
-    "--wait: success only when every Pod is Ready (readiness probes)." \
-    "Release shop, revision 1 - stored as a Secret in the namespace." \
-    "Open the shop in the browser, put something in the cart, order."
 }
 
 step3() {
@@ -132,69 +121,59 @@ step3() {
   comment "Only catalog and orders have a new Pod – their ConfigMap changed"
   run "oc get pods -l app.kubernetes.io/part-of=shop"
   run "helm history shop"
-
-  discuss \
-    "checksum/config: sha256 of the rendered ConfigMap" \
-    "" \
-    "logLevel ends up in the ConfigMaps of catalog and orders." \
-    "New ConfigMap -> new checksum -> new Pod template -> rolling update." \
-    "web, cart and review are untouched." \
-    "" \
-    "Without the checksum: the ConfigMap changes, the Pods do not."
 }
+
+#step4() {
+#  section "4 · PostgreSQL – and a chart that says no"
+#
+#  comment "What runs now: dev values (orders on SQLite with the PVC orders-data)"
+#  run "grep -A2 '^orders:' \$DEV"
+#  comment "The chart checks its values before it renders anything – a named template in _helpers.tpl"
+#  run "sed -n '/define \"shop.validate\"/,/^{{- end }}/p' \$CHART/templates/_helpers.tpl"
+#  comment "deployment-web.yaml calls it once – that is why the error names that file"
+#  run "head -2 \$CHART/templates/deployment-web.yaml"
+#
+#  comment "Now ask for PostgreSQL on top of the dev values – orders would get BOTH stores"
+#  run "helm upgrade shop \$CHART -f \$DEV --set postgresql.enabled=true"
+#  comment "Nothing changed: no new revision, the Pods keep running"
+#  run "helm history shop"
+#
+#  discuss \
+#    "Why does the chart say no?" \
+#    "" \
+#    "orders.persistence + postgresql = two stores for one service:" \
+#    "  - the PVC orders-data is created and mounted for SQLite" \
+#    "  - DATABASE_URL is set too - orders uses PostgreSQL" \
+#    "  -> a PVC that is bound, paid for and never used" \
+#    "" \
+#    "fail stops the RENDERING: nothing is sent to the cluster," \
+#    "no new revision. Same rule: backup.enabled needs postgresql." \
+#    "Kustomize only has this as a comment - Helm enforces it."
+
+#  comment "The prod values switch the PVC off and PostgreSQL on: StatefulSet, migration hook, backups"
+#  run "helm upgrade shop \$CHART -f \$PROD --wait --timeout 5m"
+#  run "oc get statefulset,pvc,cronjob"
+#  run "helm get hooks shop | grep -E '^# Source|helm.sh/hook'"
+
+#  discuss \
+#    "The migration Job is a hook, not a normal object" \
+#    "" \
+#    "orders-migrate runs post-install / post-upgrade:" \
+#    "  - after the objects are created (the database exists)" \
+#    "  - before-hook-creation deletes the old Job first" \
+#    "  - hook-succeeded removes it when it worked" \
+#    "Hooks are not part of the release manifest: helm get hooks." \
+#    "" \
+#    "orders-data is gone - Helm created it, Helm deleted it." \
+#    "data-postgres-0 is new - the StatefulSet created it."
+#}
 
 step4() {
-  section "4 · PostgreSQL – and a chart that says no"
-
-  comment "What runs now: dev values (orders on SQLite with the PVC orders-data)"
-  run "grep -A2 '^orders:' \$DEV"
-  comment "The chart checks its values before it renders anything – a named template in _helpers.tpl"
-  run "sed -n '/define \"shop.validate\"/,/^{{- end }}/p' \$CHART/templates/_helpers.tpl"
-  comment "deployment-web.yaml calls it once – that is why the error names that file"
-  run "head -2 \$CHART/templates/deployment-web.yaml"
-
-  comment "Now ask for PostgreSQL on top of the dev values – orders would get BOTH stores"
-  run "helm upgrade shop \$CHART -f \$DEV --set postgresql.enabled=true"
-  comment "Nothing changed: no new revision, the Pods keep running"
-  run "helm history shop"
-
-  discuss \
-    "Why does the chart say no?" \
-    "" \
-    "orders.persistence + postgresql = two stores for one service:" \
-    "  - the PVC orders-data is created and mounted for SQLite" \
-    "  - DATABASE_URL is set too - orders uses PostgreSQL" \
-    "  -> a PVC that is bound, paid for and never used" \
-    "" \
-    "fail stops the RENDERING: nothing is sent to the cluster," \
-    "no new revision. Same rule: backup.enabled needs postgresql." \
-    "Kustomize only has this as a comment - Helm enforces it."
-
-  comment "The prod values switch the PVC off and PostgreSQL on: StatefulSet, migration hook, backups"
-  run "helm upgrade shop \$CHART -f \$PROD --wait --timeout 5m"
-  run "oc get statefulset,pvc,cronjob"
-  run "helm get hooks shop | grep -E '^# Source|helm.sh/hook'"
-
-  discuss \
-    "The migration Job is a hook, not a normal object" \
-    "" \
-    "orders-migrate runs post-install / post-upgrade:" \
-    "  - after the objects are created (the database exists)" \
-    "  - before-hook-creation deletes the old Job first" \
-    "  - hook-succeeded removes it when it worked" \
-    "Hooks are not part of the release manifest: helm get hooks." \
-    "" \
-    "orders-data is gone - Helm created it, Helm deleted it." \
-    "data-postgres-0 is new - the StatefulSet created it."
-}
-
-step5() {
   section "5 · Test, roll back – and what survives"
 
   run "helm test shop"
   run "helm history shop"
   run "helm rollback shop 2 --wait"
-  run "oc get statefulset,pvc"
   run "helm history shop"
 
   discuss \

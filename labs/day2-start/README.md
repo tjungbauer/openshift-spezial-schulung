@@ -14,7 +14,7 @@ Run the commands from the **root of the training repository** (the folder that c
 ## 1 · Variables
 
 ```bash
-export NS=user-01                                                   # your namespace
+export NS=sbx-wsXX                                                  # your namespace
 export SHOP_REPO=https://git.acme.example/user-01/shop-gitops.git   # an EMPTY repository
 export GIT_USER=user-01
 export SHOP_WORK=~/shop-gitops
@@ -72,7 +72,7 @@ opens in the browser. In the Argo CD UI: the Application tile `shop-dev` with al
 
 **If it does not work**
 
-- `… is forbidden … namespace "user-01-shop"` in the Application – the namespace is not prepared
+- `… is forbidden … namespace "sbx-wsXX-shop"` in the Application – the namespace is not prepared
   for your Argo CD. Ask the trainer (`day2-setup.sh`).
 - `ComparisonError … authentication required` – the repository Secret is missing or wrong:
   `oc get secret shop-gitops-repo --show-labels`.

@@ -18,11 +18,11 @@ Guided demos for the OpenShift trainings (01–06 basics refresher, 10–12 adva
 | 10 | [The shop as a Helm chart](10_helm-shop/) | `demo-10-helm-shop.sh` | values per environment, checksum rollout, `fail`, hooks, `helm test`, rollback |
 | 11 | [The shop with Kustomize](11_kustomize-shop/) | `demo-11-kustomize-shop.sh` | base, components, overlays, `oc diff -k`, own overlay |
 | 12 | [An Argo CD Application](12_argocd-application/) | – (UI, `Application.yaml`) | Application form, sync policy, Helm values files, self heal |
-| 13 | [Probes at work](13_probes/) | `demo-13-probes.sh` | readiness vs. liveness, startup probe for slow starters, wrong liveness path, stuck rollout |
-| 14 | [Requests, limits and the HPA](14_resources-hpa/) | `demo-14-resources-hpa.sh` | requests vs. usage, CPU throttling, HPA scale-out, scale-in stabilisation |
-| 15 | [From metric to alert](15_metrics-alerts/) | `demo-15-metrics-alerts.sh` | /metrics, ServiceMonitor, PromQL rate and histogram_quantile, PrometheusRule pending/firing |
-| 16 | [One request, three signals](16_logs-traces/) | `demo-16-logs-traces.sh` | JSON logs, request id across web/orders/catalog, OpenTelemetry on with one env var, the trace in Jaeger |
-| 22 | [Storage in action](22_storage/) | `demo-22-storage.sh` | PVC Pending → Bound, RWX on block storage, data outlives the Pod, RWO + RollingUpdate = Multi-Attach, snapshot and restore |
+| 13 | [Storage in action](13_storage/) | `demo-13-storage.sh` | PVC Pending → Bound, RWX on block storage, data outlives the Pod, RWO + RollingUpdate = Multi-Attach, snapshot and restore |
+| 14 | [Probes at work](14_probes/) | `demo-14-probes.sh` | readiness vs. liveness, startup probe for slow starters, wrong liveness path, stuck rollout |
+| 15 | [Requests, limits and the HPA](15_resources-hpa/) | `demo-15-resources-hpa.sh` | requests vs. usage, CPU throttling, HPA scale-out, scale-in stabilisation |
+| 16 | [From metric to alert](16_metrics-alerts/) | `demo-16-metrics-alerts.sh` | /metrics, ServiceMonitor, PromQL rate and histogram_quantile, PrometheusRule pending/firing |
+| 17 | [One request, three signals](17_logs-traces/) | `demo-17-logs-traces.sh` | JSON logs, request id across web/orders/catalog, OpenTelemetry on with one env var, the trace in Jaeger |
 
 ## Prerequisites
 

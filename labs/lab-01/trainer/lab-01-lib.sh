@@ -217,7 +217,7 @@ bonus() {
     "" \
     "No podman on the laptop needed – the build uses your quota." \
     "The result lands in an ImageStream in the internal registry." \
-    "Release builds belong into the CI pipeline (Day 2, module 11)."
+    "Release builds belong into the CI pipeline (Day 2, module 12)."
 }
 
 # ═══════════════════════════════════════════════════════════════════════════

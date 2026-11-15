@@ -1,0 +1,41 @@
+# Demo 13 – ReadWriteMany on a class that cannot do it (EBS = block storage, one node).
+# The Pod is needed: with WaitForFirstConsumer nothing is provisioned without one.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: shared
+  labels:
+    app.kubernetes.io/part-of: demo-13
+spec:
+  accessModes: [ReadWriteMany]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: shared-user
+  labels:
+    app.kubernetes.io/part-of: demo-13
+spec:
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+  - name: shell
+    image: registry.access.redhat.com/ubi9/ubi:9.9
+    command: ["sleep", "infinity"]
+    volumeMounts:
+    - { name: shared, mountPath: /shared }
+    resources:
+      requests: { cpu: 10m, memory: 16Mi }
+      limits: { memory: 32Mi }
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }
+  volumes:
+  - name: shared
+    persistentVolumeClaim:
+      claimName: shared

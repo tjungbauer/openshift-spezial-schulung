@@ -23,7 +23,7 @@ Build a chart from scratch for a simple website: a **Deployment**, a **Service**
 ## Before you start
 
 ```bash
-export NS=user-01            # your namespace – set it first
+export NS=sbx-wsXX           # your namespace – set it first
 oc project $NS
 helm version                 # Helm 3.x or 4.x
 ```

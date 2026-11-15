@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-#  Lab 07 – Metrics, alerts and logs: interactive walkthrough
+#  Lab 07 – Break it – and watch it heal: interactive walkthrough
 #  Run:     ./lab-07-walkthrough.sh [-n|--namespace NAME] [TASK|bonus|cleanup]
 #  Expects: oc logged in, git; GIT_REPO_URL, GIT_USERNAME, GIT_TOKEN
 #
 #  Runs the commands of the student README (ENTER runs each command):
-#  the shop from Git (Day 2 and lab 6 state, done quietly), ServiceMonitors,
-#  up, PromQL, a PrometheusRule via Git, an alert that fires, the log lines
-#  behind it. Default namespace: lab
+#  the shop from Git (Day 2 start, done quietly), probes, fail_ready, a wrong
+#  liveness path, a slow start, an HPA under load. Default namespace: lab
 #  (created with its own Argo CD; the shop runs in lab-shop). GIT_REPO_URL
 #  must point to a repository the trainer owns – it is force-pushed.
 # ---------------------------------------------------------------------------
@@ -19,7 +18,7 @@ source "${SCRIPT_DIR}/lab-07-lib.sh"
 
 DEMO_USAGE_ARGS="[TASK|bonus|cleanup]"
 DEMO_USAGE_EXTRA="  TASK                   run only this task (1-6); default: all tasks
-  bonus                  run only the bonus task (the slow alert)
+  bonus                  run only the bonus task (two replicas, one unready)
   cleanup                delete what the lab created
 
   LAB_NS=NAME            same as -n NAME
@@ -50,21 +49,20 @@ case "${MODE}" in
   all)
     on_exit_cleanup cleanup "Delete the lab resources (${LAB_NS} and ${LAB_NS}-shop for the default namespace)? [y/N]"
 
-    title "Lab 07 – Metrics, alerts and logs" \
-          "ServiceMonitor · up · PromQL · PrometheusRule · logs"
+    title "Lab 07 – Break it – and watch it heal" \
+          "probes · fail_ready · liveness · startup · HPA"
     for i in 1 2 3 4 5 6; do "task${i}"; done
 
     takeaways \
-      "A ServiceMonitor selects Services by label and the port by name" \
-      "Run 'up' first – a missing target or a 0 explains an empty graph" \
-      "rate() for counters, histogram_quantile() for latency" \
-      "An alert is a query with a threshold and for: – kept in Git" \
-      "The request id leads from the alert to the log lines in every service"
+      "Readiness takes a Pod out of the Service – it does not restart it" \
+      "A wrong liveness probe restarts a healthy app – keep it simple" \
+      "The startup probe is the budget for a slow start" \
+      "Readiness gates every rollout – the old version serves meanwhile" \
+      "With an HPA, the replica count does not belong in Git"
 
     if ask "Run the bonus tasks too? [y/N]"; then
       bonus
     fi
-    stop_traffic
     check || true
     ;;
 esac

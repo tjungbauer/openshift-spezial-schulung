@@ -1,0 +1,48 @@
+# Demo 16 – steady traffic for catalog: about 10 requests per second,
+# the product list and single products (every 20th call asks for one that does not exist -> 404)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load
+  labels:
+    app.kubernetes.io/name: load
+    app.kubernetes.io/part-of: demo-16
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: load
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: load
+        app.kubernetes.io/part-of: demo-16
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: load
+        image: registry.redhat.io/ubi9/ubi:9.9
+        command: ["bash", "-c"]
+        args:
+        - |
+          ids=(mug socks rucksack plant torch)
+          n=0
+          while true; do
+            n=$((n + 1))
+            curl -s -o /dev/null -m 5 http://catalog:8080/products
+            if (( n % 20 == 0 )); then
+              curl -s -o /dev/null -m 5 http://catalog:8080/products/does-not-exist
+            else
+              curl -s -o /dev/null -m 5 "http://catalog:8080/products/${ids[n % 5]}"
+            fi
+            sleep 0.2
+          done
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }

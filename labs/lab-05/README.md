@@ -16,24 +16,23 @@ hook and a wave, promote the exact image of dev to prod – and roll back a brok
 **How to work through this lab**
 
 - Run every command from the folder `lab-05/`. Your Git repository is a separate folder,
-  `$WORK` (default `~/website-gitops`); the commands write into it with `"$WORK/…"` and
-  `git -C "$WORK"` – you never have to change directories.
+`$WORK` (default `~/website-gitops`); the commands write into it with `"$WORK/…"` and
+`git -C "$WORK"` – you never have to change directories.
 - Every task ends with a **commit and push**. Argo CD only sees what is in Git.
 - Argo CD checks Git every three minutes. Do not wait – the `oc annotate … refresh` command in
-  the tasks (or **REFRESH** in the UI) makes it look now.
+the tasks (or **REFRESH** in the UI) makes it look now.
 - Stuck? `reference/` contains the finished repository content.
 
 ## Before you start
 
 You need from the trainer: your **namespace**, the **URL of your Git repository** on the ACME
-Git server and your **Git user and token**. Your namespace already contains your own Argo CD
-instance (`argocd`).
+Git server and your **Git user and token**. 
 
 Create an **empty** repository `website-gitops` in the web UI of the Git server – no README, no
 licence file – and copy its HTTPS URL. Then:
 
 ```bash
-export NS=user-01                                                 # your namespace
+export NS=sbx-ws00                                                 # your namespace
 export REPO_URL=https://git.acme.example/user-01/website-gitops.git   # your repository
 export GIT_USER=user-01                                           # your Git user
 export WORK=~/website-gitops                                      # your local copy
@@ -109,10 +108,10 @@ repository. The first push sends everything to the Git server.
 **If it does not work**
 
 - `error: unknown switch 'b'` – your Git is older than 2.28: `git -C "$WORK" init` and then
-  `git -C "$WORK" checkout -b main`.
+`git -C "$WORK" checkout -b main`.
 - `remote origin already exists` – you ran the command twice; ignore it.
 - `rejected … fetch first` – the repository was not empty (README?). Delete and create it
-  again empty, or ask the trainer.
+again empty, or ask the trainer.
 - `Authentication failed` – user and token, not your password. The token needs write access.
 
 ---
@@ -171,7 +170,7 @@ curl -k https://$ROUTE
 
 - The login page does not accept the password – copy it again without the line `# admin.password`.
 - `Unknown` / `ComparisonError … authentication required` – the repository Secret is missing
-  or the token is wrong: `oc get secret website-gitops-repo --show-labels`.
+or the token is wrong: `oc get secret website-gitops-repo --show-labels`.
 - `… app path does not exist` – the push of task 1 did not arrive, or the branch is not `main`.
 - `forbidden` when you apply the Application – ask the trainer (setup of your namespace).
 
@@ -264,7 +263,7 @@ everything without an annotation is wave 0; wave 1 (the Route) starts when wave 
 **If it does not work**
 
 - Nothing happens – the refresh annotation was set before the push arrived; run the
-  `oc annotate` command again, or press **REFRESH** in the UI.
+`oc annotate` command again, or press **REFRESH** in the UI.
 - The sync hangs at the hook – `oc get pods -l job-name=dev-prepare`, `oc logs job/dev-prepare`.
 
 ---
@@ -319,7 +318,7 @@ PodDisruptionBudget.
 
 - `DIGEST` is empty – no dev Pod is running: `oc get pods -l env=dev`.
 - `images` appears twice in the kustomization – you ran the `cat >>` twice; open
-  `"$WORK/overlays/prod/kustomization.yaml"` and delete one block.
+`"$WORK/overlays/prod/kustomization.yaml"` and delete one block.
 
 ---
 
@@ -366,18 +365,6 @@ bad commit and its revert.
 > **What to notice:** the rolling update protected you – the old Pod kept serving. The roll
 > back is a reviewed commit, and auto-sync stays on. `oc rollout undo` would be overwritten by
 > self heal within seconds – try it if you do not believe it.
-
----
-
-## Done early? Bonus
-
-- **Prune:** remove the component from prod – delete the two lines `components:` and
-  `- ../../components/pdb` in `"$WORK/overlays/prod/kustomization.yaml"`, commit, push,
-  refresh `website-prod`. Is the PodDisruptionBudget gone? Compare with the bonus of lab 4,
-  where `oc apply -k` kept it.
-- **Undo by hand:** `oc rollout undo deployment/dev-website` – what does self heal do?
-- **Diff:** change the dev page in Git **without** pushing – what does the UI show? And after
-  the push, before the refresh? (**APP DIFF**)
 
 ## Cleanup
 

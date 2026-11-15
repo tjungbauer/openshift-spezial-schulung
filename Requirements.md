@@ -36,3 +36,13 @@ Namespaces:
 
   Lab 02
   - PVC is required RWX
+
+  Lab 05 --> MUST BE TESTED ON CUSTOMER ENV
+  - welches GIT repo soll verwendet werden? URL bereitstellen
+  - --> eventuell jeder sein eigenes repo ?
+export NS=sbx-ws00                                                 # your namespace
+export REPO_URL=https://git.acme.example/user-01/website-gitops.git   # your repository
+export GIT_USER=user-01                                           # your Git user
+export WORK=~/website-gitops  
+
+--> muss vorbereitet sein, inkl Token

@@ -1,0 +1,77 @@
+# Demo 15 – load generators: each replica runs 4 curl loops against $TARGET.
+# More load = more replicas:  oc scale deployment/load-catalog --replicas=3
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-catalog
+  labels:
+    app.kubernetes.io/name: load-catalog
+    app.kubernetes.io/part-of: demo-15
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: load-catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: load-catalog
+        app.kubernetes.io/part-of: demo-15
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: load
+        image: registry.redhat.io/ubi9/ubi:9.9
+        env:
+        - name: TARGET
+          value: http://catalog:8080/products
+        command: ["bash", "-c"]
+        args:
+        - for i in 1 2 3 4; do (while true; do curl -s -o /dev/null -m 5 "$TARGET"; done) & done; wait
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-limited
+  labels:
+    app.kubernetes.io/name: load-limited
+    app.kubernetes.io/part-of: demo-15
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: load-limited
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: load-limited
+        app.kubernetes.io/part-of: demo-15
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: load
+        image: registry.redhat.io/ubi9/ubi:9.9
+        env:
+        - name: TARGET
+          value: http://catalog-limited:8080/products
+        command: ["bash", "-c"]
+        args:
+        - for i in 1 2 3 4; do (while true; do curl -s -o /dev/null -m 5 "$TARGET"; done) & done; wait
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }

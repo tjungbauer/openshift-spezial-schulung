@@ -1,0 +1,16 @@
+# Demo 16 – tell the user-workload Prometheus where to scrape:
+# every Service with app.kubernetes.io/name=catalog, port "http", path /metrics, every 30 s
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: catalog
+  labels:
+    app.kubernetes.io/part-of: demo-16
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s

@@ -1,0 +1,23 @@
+# Demo 16 – a Pod with curl, to call the Service and single Pods from inside the cluster
+apiVersion: v1
+kind: Pod
+metadata:
+  name: client
+  labels:
+    app.kubernetes.io/name: client
+    app.kubernetes.io/part-of: demo-16
+spec:
+  terminationGracePeriodSeconds: 1
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+  - name: client
+    image: registry.redhat.io/ubi9/ubi:9.9
+    command: ["sleep", "infinity"]
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 64Mi }
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }

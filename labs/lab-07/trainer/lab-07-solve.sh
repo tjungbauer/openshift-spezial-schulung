@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-#  Lab 07 – Metrics, alerts and logs: automatic solution and checks
+#  Lab 07 – Break it – and watch it heal: automatic solution and checks
 #  Run:     ./lab-07-solve.sh [-n|--namespace NAME] [TASK|bonus|check|cleanup]
 #  Expects: oc logged in, git; GIT_REPO_URL, GIT_USERNAME, GIT_TOKEN
 #
 #     (no argument)   all tasks + checks
 #     TASK            run only task n (1-6) – earlier tasks are filled in quietly
-#     bonus           the slow alert (CatalogSlow)
+#     bonus           two replicas, one unready
 #     check           PASS / FAIL per item (exit code = number of failures)
 #     cleanup         delete what the lab created
-#
-#  After the tasks it runs the README's cleanup (faults off, traffic gone) –
-#  the checks expect that state.
 #
 #  Same tasks as lab-07-walkthrough.sh, but without pauses and discussions.
 #  Check a student: LAB_NS=user-01 ./lab-07-solve.sh check
@@ -31,7 +28,7 @@ pause()     { :; }
 DEMO_USAGE_ARGS="[TASK|bonus|check|cleanup]"
 DEMO_USAGE_EXTRA="  (none)                 all tasks + checks
   TASK                   run only task n (1-6)
-  bonus                  the slow alert (CatalogSlow)
+  bonus                  two replicas, one unready
   check                  PASS / FAIL per item (exit code = number of failures)
   cleanup                delete what the lab created
 
@@ -51,7 +48,6 @@ lab_init
 case "${MODE}" in
   all)
     for i in 1 2 3 4 5 6; do "task${i}"; done
-    stop_traffic
     check
     ;;
   [1-6])   "task${MODE}" ;;
