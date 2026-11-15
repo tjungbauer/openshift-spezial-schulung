@@ -42,11 +42,11 @@ images:
   newName: quay.io/tjungbau/shop-review-dev
   newTag: shop-test-dev
 
-patches:
-- path: patch-catalog-lab.yaml
-- target:
-    kind: Deployment
-    name: catalog
-  patch: |-
-    - op: remove
-      path: /spec/replicas
+#patches:
+#- path: patch-catalog-lab.yaml
+#- target:
+#    kind: Deployment
+#    name: catalog
+#  patch: |-
+#    - op: remove
+#      path: /spec/replicas
