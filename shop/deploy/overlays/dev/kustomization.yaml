@@ -8,8 +8,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - ../../base
-- hpa-catalog.yaml              # lab 7 task 6: the HPA owns the replica count
-- prometheusrule-catalog.yaml   # lab 8 task 4: alert on the catalog error ratio
+#- hpa-catalog.yaml              # lab 7 task 6: the HPA owns the replica count
+#- prometheusrule-catalog.yaml   # lab 8 task 4: alert on the catalog error ratio
 
 # building blocks – dev keeps SQLite, on a PVC
 # (available: networkpolicies, monitoring, persistent-orders, postgres, backup;
