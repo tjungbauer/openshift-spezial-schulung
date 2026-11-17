@@ -1,0 +1,66 @@
+# Demo 18 – "shopper": plays the users of the shop. Through web it calls every service:
+#   catalog (products), review (reviews), cart (cart) and – every 10th round – orders
+#   (an order, which also calls catalog: stock reservation).
+# One line per call:  <time> <method> <path> <HTTP status> <seconds>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shopper
+  labels:
+    app.kubernetes.io/name: shopper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: shopper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: shopper
+    spec:
+      terminationGracePeriodSeconds: 1
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+      - name: shopper
+        image: registry.redhat.io/ubi9/ubi:9.9
+        command: ["bash", "-c"]
+        args:
+        - |
+          call() { echo "$(date +%T) $1 $2 $(curl -s -o /dev/null -m 10 -X "$1" -w '%{http_code} %{time_total}' "${@:3}" "http://web:8080$2")"; }
+          n=0
+          while true; do
+            for p in /api/catalog/products /api/catalog/products/mug /api/review/reviews /api/review/reviews/mug /api/cart/cart; do
+              call GET "$p"
+            done
+            n=$((n + 1))
+            if (( n % 10 == 0 )); then
+              call POST /api/orders/orders -H 'Content-Type: application/json' -d '{"items": [{"product_id": "mug", "quantity": 1}]}'
+            fi
+            sleep 1
+          done
+        resources:
+          requests: { cpu: 10m, memory: 32Mi }
+          limits: { memory: 64Mi }
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: { drop: [ALL] }
+---
+# the shop's NetworkPolicies only let the router reach web – this lets the shopper in
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-shopper-to-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes: [Ingress]
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: shopper
+    ports:
+    - { protocol: TCP, port: 8080 }

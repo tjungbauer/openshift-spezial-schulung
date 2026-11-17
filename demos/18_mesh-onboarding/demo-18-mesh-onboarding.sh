@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-#  Demo 18 – The shop joins the mesh
+#  Demo 18 – The shop joins the mesh (ambient mode)
 #  Run:     ./demo-18-mesh-onboarding.sh [-n|--namespace NAME] [STEP|cleanup]
 #  Expects: oc logged in; OpenShift Service Mesh 3 in ambient mode (Istio
 #           "default" + IstioCNI with profile ambient, ZTunnel, Kiali). Step 0
 #           labels the namespace for istiod – that needs cluster-admin (or do it
-#           before: admin/namespace-in-mesh.sh).
+#           before: admin/namespace-in-mesh.sh demo-mesh).
 #  The demo runs in the project "demo-mesh" (or NAME), created if missing.
 #
+#  The real shop (dev overlay: 5 services, NetworkPolicies, ServiceMonitors)
+#  and "shopper", who uses every service through web:
 #    0  cluster-admin: the mesh (ambient) is there – the namespace joins its scope
 #    1  you: the shop without the mesh – every Pod 1/1
-#    2  you: the ambient label in the Pod template – still 1/1, mTLS by ztunnel
-#    3  you: a waypoint for L7 – the shop in Kiali with HTTP metrics
+#    2  you: the ambient label + a NetworkPolicy for HBONE – still 1/1
+#    3  you: a waypoint for L7 – the whole shop in Kiali
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -33,7 +35,7 @@ esac
 
 cd "${SCRIPT_DIR}" || die "Cannot cd to ${SCRIPT_DIR}"
 
-DEPLOYMENTS="web catalog cart orders review"
+DEPLOYMENTS="web catalog cart orders review shopper"
 LABEL="istio-discovery=enabled"
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -46,9 +48,6 @@ rollouts() {
     oc rollout status "deployment/${d}" --timeout=180s >/dev/null 2>&1 || true
   done
 }
-
-# traffic – 30 calls through the Route, as a browser would
-TRAFFIC="ROUTE=\$(oc get route web -o jsonpath='{.spec.host}'); for i in \$(seq 1 30); do curl -sk -o /dev/null -w '%{http_code} ' https://\$ROUTE/api/catalog/products; done; echo"
 
 in_scope() {    # the namespace carries the discovery label
   [[ "$(oc get project "${DEMO_PROJECT}" -o jsonpath='{.metadata.labels.istio-discovery}' 2>/dev/null)" == enabled ]]
@@ -64,6 +63,9 @@ kiali_url() {
   fi
 }
 
+# what the shopper got in the last 30 s: calls per path and status
+SHOPPER="oc logs deployment/shopper --since=30s | awk '{print \$3, \$4}' | sort | uniq -c"
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  Cleanup
 # ═══════════════════════════════════════════════════════════════════════════
@@ -78,13 +80,13 @@ cleanup() {
 # ═══════════════════════════════════════════════════════════════════════════
 
 step0() {
-  section "0 · cluster-admin: the mesh is there – the namespace joins"
-  comment "Installed once by the platform team: control plane, CNI and ztunnel – profile ambient"
-  run "oc get istio,istiocni,ztunnel"
-  run "oc get istio default -o jsonpath='profile: {.spec.profile}{\"\\n\"}'"
-  run "oc -n ztunnel get daemonset 2>/dev/null || oc get daemonset -A | grep -i ztunnel"
-  comment "istiod only watches namespaces that match its discoverySelectors"
-  run "oc get istio default -o jsonpath='{.spec.values.meshConfig.discoverySelectors}{\"\\n\"}'"
+  #section "0 · cluster-admin: the mesh is there – the namespace joins"
+  #comment "Installed once by the platform team: control plane, CNI and ztunnel – profile ambient"
+  #run "oc get istio,istiocni,ztunnel"
+  #run "oc get istio default -o jsonpath='profile: {.spec.profile}{\"\\n\"}'"
+  #run "oc get daemonset -A | grep -i ztunnel"
+  #comment "istiod only watches namespaces that match its discoverySelectors"
+  #run "oc get istio default -o jsonpath='{.spec.values.meshConfig.discoverySelectors}{\"\\n\"}'"
   run "oc get project ${DEMO_PROJECT} --show-labels"
   if in_scope; then
     comment "The namespace has the label already"
@@ -105,66 +107,58 @@ step0() {
 }
 
 step1() {
-  section "1 · you: the shop – without the mesh"
+  section "1 · you: the real shop – without the mesh"
   show_file no-mesh/kustomization.yaml
   run "oc apply -k no-mesh"
   rollouts
   run "oc get pods"
+  comment "The shopper uses every service – through web:"
+  run "oc logs deployment/shopper --tail=6"
 
   discuss \
-    "Five Deployments, every Pod 1/1" \
+    "The shop as in the dev overlay - six Deployments, every Pod 1/1" \
     "" \
-    "Being in a mesh namespace changes nothing yet:" \
-    "on this cluster a workload joins by its own label." \
+    "web, catalog, cart, orders, review - and shopper, our users." \
+    "NetworkPolicies: default deny, web -> backends, orders -> catalog." \
     "Remember the 1/1 - in ambient mode it stays that way."
 }
 
 step2() {
-  section "2 · you: the ambient label in the Pod template"
+  section "2 · you: the ambient label – and the mesh port in the NetworkPolicies"
   [[ "${MODE}" == "2" ]] && { oc apply -k no-mesh >/dev/null; rollouts; }
   show_file ambient/kustomization.yaml
-  run "oc kustomize ambient | grep -B2 -A1 'istio.io/dataplane-mode'"
+  show_file ambient/allow-ambient.yaml
   run "oc apply -k ambient"
   rollouts
   comment "Still 1/1 – no sidecar, only the app container"
   run "oc get pods"
-  run "oc get pod -l app.kubernetes.io/name=catalog -o jsonpath='{.items[0].spec.containers[*].name}{\"\\n\"}'"
-  comment "istio-cni redirects the Pod's traffic to ztunnel – it marks the Pod:"
-  run "oc get pod -l app.kubernetes.io/name=catalog -o jsonpath='{.items[0].metadata.annotations.ambient\\.istio\\.io/redirection}{\"\\n\"}'"
-  run "${TRAFFIC}"
+  #comment "istio-cni redirects the Pod's traffic to ztunnel – it marks the Pod:"
+  #run "oc get pod -l app.kubernetes.io/name=catalog -o jsonpath='{.items[0].metadata.annotations.ambient\\.istio\\.io/redirection}{\"\\n\"}'"
+  #sleep 20
+  comment "The shop still works – calls per path and status, last 30 s:"
+  run "${SHOPPER}"
 
   discuss \
-    "Your part: one label - in the Pod template, in Git" \
+    "Your part: one label in the Pod template - and one NetworkPolicy" \
     "" \
     "  istio.io/dataplane-mode: ambient   -> 1/1, traffic via ztunnel" \
+    "  allow port 15008 (HBONE)           -> mesh traffic, not 8080" \
     "" \
-    "mTLS, identity, L4 policies and TCP metrics - nothing in your Pod." \
-    "The template change rolled out new Pods; a namespace label" \
-    "(platform team) puts running Pods in without a restart."
+    "Without the policy, default deny drops the mesh traffic: 503 everywhere." \
+    "mTLS, identity, L4 metrics - nothing in your Pod."
 }
 
 step3() {
-  section "3 · you: a waypoint for L7 – the shop in Kiali"
+  section "3 · you: a waypoint for L7 – the whole shop in Kiali"
   [[ "${MODE}" == "3" ]] && { oc apply -k ambient >/dev/null; rollouts; }
   show_file waypoint/waypoint.yaml
   run "oc apply -k waypoint"
   run "oc wait --for=condition=Programmed gateway/waypoint --timeout=120s"
-  run "oc get gateway waypoint"
   run "oc get pods"
-  run "oc get service -L istio.io/use-waypoint"
-  run "${TRAFFIC}"
-  comment "Open the graph – namespace ${DEMO_PROJECT}, last 5 minutes:"
+  #run "oc get service -L istio.io/use-waypoint"
+  comment "Give Prometheus a minute – then open the graph (Last 5m, Traffic: HTTP + TCP):"
   run "echo \"$(kiali_url)\""
   pause
-
-  discuss \
-    "L7 only where you need it - through the waypoint" \
-    "" \
-    "  waypoint: one Envoy Deployment for the namespace (Gateway API)" \
-    "  Services with istio.io/use-waypoint send their calls through it" \
-    "" \
-    "HTTP metrics, routing, retries, fault injection, L7 policies" \
-    "need the waypoint - without it you get mTLS and TCP metrics."
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -192,7 +186,7 @@ case "${MODE}" in
     takeaways \
       "The platform team installs the mesh and decides which namespaces belong to it" \
       "You put a workload in: one label in the Pod template – in Git" \
-      "Ambient: no sidecar – 1/1, ztunnel does mTLS and L4" \
-      "A waypoint adds L7: HTTP metrics, routing, retries, L7 policies"
+      "Ambient: no sidecar – 1/1; open port 15008 in your NetworkPolicies" \
+      "A waypoint adds L7: HTTP metrics, routing, retries, faults, L7 policies"
     ;;
 esac

@@ -1,14 +1,14 @@
-# Demo 19 – Spread and PDB at work
+# Demo 20 – Spread and PDB at work
 
 catalog and a `probe` Pod that calls it five times per second – "the users". One replica turns
 every Pod restart into an outage; three spread replicas, a PodDisruptionBudget and a careful
 rolling update make the same events invisible. Runs in its own project `demo-ha`. About 7 minutes.
 
 ```bash
-cd demos/19_ha-pdb
-./demo-19-ha-pdb.sh              # all steps
-./demo-19-ha-pdb.sh 2            # one step (creates what it needs)
-./demo-19-ha-pdb.sh cleanup
+cd demos/20_ha-pdb
+./demo-20-ha-pdb.sh              # all steps
+./demo-20-ha-pdb.sh 2            # one step (creates what it needs)
+./demo-20-ha-pdb.sh cleanup
 ```
 
 | Step | What you see |

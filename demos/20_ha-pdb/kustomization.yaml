@@ -1,4 +1,4 @@
-# Demo 19 – catalog from the shop's deploy/base (one replica, as in Git) and a probe Pod
+# Demo 20 – catalog from the shop's deploy/base (one replica, as in Git) and a probe Pod
 # that calls it five times per second. oc apply -k . (the script does that)
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -8,7 +8,7 @@ resources:
 
 labels:
 - pairs:
-    app.kubernetes.io/part-of: demo-19
+    app.kubernetes.io/part-of: demo-20
   includeSelectors: false
   includeTemplates: true
 

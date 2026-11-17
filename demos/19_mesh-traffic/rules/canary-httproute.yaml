@@ -1,0 +1,17 @@
+# Demo 19 – the same canary with the Gateway API (the recommended API for waypoints):
+# an HTTPRoute attached to the Service catalog, weights to the per-version Services.
+# Use it instead of destinationrule + canary-90-10 if the VirtualService is ignored.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: catalog-canary
+spec:
+  parentRefs:
+  - group: ""
+    kind: Service
+    name: catalog
+    port: 8080
+  rules:
+  - backendRefs:
+    - { name: catalog-v1, port: 8080, weight: 90 }
+    - { name: catalog-v2, port: 8080, weight: 10 }

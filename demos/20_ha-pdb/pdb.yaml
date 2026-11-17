@@ -1,11 +1,11 @@
-# Demo 19 – at least two catalog Pods must stay up during voluntary disruptions
+# Demo 20 – at least two catalog Pods must stay up during voluntary disruptions
 # (drain, eviction). It does not protect against crashes or a node failure.
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: catalog
   labels:
-    app.kubernetes.io/part-of: demo-19
+    app.kubernetes.io/part-of: demo-20
 spec:
   minAvailable: 2
   selector:

@@ -1,0 +1,20 @@
+# Demo 19 – the shop in ambient mode with its waypoint (demo 18), and catalog in two
+# versions: the existing Deployment becomes v1, catalog-v2 is added. The Service catalog
+# selects both – routing rules decide who gets what.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../18_mesh-onboarding/waypoint
+- catalog-v2.yaml
+
+patches:
+- target:
+    kind: Deployment
+    name: catalog
+  patch: |-
+    - op: add
+      path: /spec/selector/matchLabels/version
+      value: v1
+    - op: add
+      path: /spec/template/metadata/labels/version
+      value: v1

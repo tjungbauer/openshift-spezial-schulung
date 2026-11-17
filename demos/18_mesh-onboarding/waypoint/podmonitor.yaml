@@ -1,0 +1,32 @@
+# Demo 18 – Prometheus (user workload monitoring) scrapes the waypoint's Envoy metrics
+# (istio_requests_total …) – the HTTP edges in Kiali come from here.
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: waypoint
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: waypoint
+  podMetricsEndpoints:
+  - targetPort: 15090
+    path: /stats/prometheus
+    interval: 30s
+---
+# the shop's default deny also applies to the waypoint – let the monitoring stack in
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-to-waypoint
+spec:
+  podSelector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: waypoint
+  policyTypes: [Ingress]
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          network.openshift.io/policy-group: monitoring
+    ports:
+    - { protocol: TCP, port: 15090 }

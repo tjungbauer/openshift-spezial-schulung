@@ -1,5 +1,5 @@
 # Demo 18 – a waypoint proxy for the namespace: an Envoy Deployment that handles L7
-# (HTTP metrics, routing, retries, L7 policies) for the Services that use it.
+# (HTTP metrics, routing, retries, faults, L7 policies) for the Services that use it.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:

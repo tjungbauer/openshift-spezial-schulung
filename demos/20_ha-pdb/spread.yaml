@@ -1,4 +1,4 @@
-# Demo 19 – catalog made highly available (oc patch --patch-file, strategic merge):
+# Demo 20 – catalog made highly available (oc patch --patch-file, strategic merge):
 #   3 replicas, at most one more Pod per zone / per node than elsewhere,
 #   rolling update without a missing replica, and 5 s for the router/Service to notice.
 spec:

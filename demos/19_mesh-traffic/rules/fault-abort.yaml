@@ -1,0 +1,14 @@
+# Demo 19 – fault injection: half of the calls to catalog get a 503 – catalog is not changed
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: catalog
+spec:
+  hosts: [catalog]
+  http:
+  - fault:
+      abort:
+        percentage: { value: 50 }
+        httpStatus: 503
+    route:
+    - destination: { host: catalog, subset: v1 }

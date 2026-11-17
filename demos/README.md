@@ -23,8 +23,9 @@ Guided demos for the OpenShift trainings (01–06 basics refresher, 10–12 adva
 | 15 | [Requests, limits and the HPA](15_resources-hpa/) | `demo-15-resources-hpa.sh` | requests vs. usage, CPU throttling, HPA scale-out, scale-in stabilisation |
 | 16 | [From metric to alert](16_metrics-alerts/) | `demo-16-metrics-alerts.sh` | /metrics, ServiceMonitor, PromQL rate and histogram_quantile, PrometheusRule pending/firing |
 | 17 | [One request, three signals](17_logs-traces/) | `demo-17-logs-traces.sh` | JSON logs, request id across web/orders/catalog, OpenTelemetry on with one env var, the trace in Jaeger |
-| 18 | [The shop joins the mesh](18_mesh-onboarding/) | `demo-18-mesh-onboarding.sh` | cluster-admin: mesh in ambient mode, namespace in scope · you: ambient label in the Pod template (still 1/1), a waypoint for L7, Kiali |
-| 19 | [Spread and PDB at work](19_ha-pdb/) | `demo-19-ha-pdb.sh` | one replica = outage, topologySpreadConstraints, PDB refuses the second eviction, rollout under load without errors |
+| 18 | [The shop joins the mesh](18_mesh-onboarding/) | `demo-18-mesh-onboarding.sh` | the real shop + shopper · cluster-admin: mesh in ambient mode, namespace in scope · you: ambient label (still 1/1), NetworkPolicy for HBONE 15008, waypoint + PodMonitor, the whole shop in Kiali |
+| 19 | [Canary and fault injection](19_mesh-traffic/) | `demo-19-mesh-traffic.sh` | catalog v1 + v2, round robin, canary 90/10, fault abort 503, fault delay 2 s – at the waypoint (ambient) |
+| 20 | [Spread and PDB at work](20_ha-pdb/) | `demo-20-ha-pdb.sh` | one replica = outage, topologySpreadConstraints, PDB refuses the second eviction, rollout under load without errors |
 
 ## Prerequisites
 
