@@ -1,0 +1,2 @@
+# Trainer-only materials (solutions, setup helpers) — keep local, never publish
+labs/**/trainer/
