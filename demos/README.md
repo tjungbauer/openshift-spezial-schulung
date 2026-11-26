@@ -1,8 +1,8 @@
 # OpenShift Core Concepts – Interactive Demos
 
-Guided demos for the OpenShift trainings (01–06 basics refresher, 10–12 advanced Day 1, 13– advanced Day 2; 08 and 09 use public charts on GitHub). Each demo folder has:
+Guided demos for the OpenShift trainings (01–07 basics refresher, 10–12 advanced Day 1, 13–19 advanced Day 2). Each demo folder has:
 
-- an **interactive script** (`demo-0X-*.sh`) that the trainer runs live, step by step
+- an **interactive script** (`demo-NN-*.sh`) that the trainer runs live, step by step
 - a **README** with the same steps written out, so students can repeat them by hand
 - the **manifests** used in the demo
 
@@ -24,17 +24,21 @@ Guided demos for the OpenShift trainings (01–06 basics refresher, 10–12 adva
 | 16 | [From metric to alert](16_metrics-alerts/) | `demo-16-metrics-alerts.sh` | /metrics, ServiceMonitor, PromQL rate and histogram_quantile, PrometheusRule pending/firing |
 | 17 | [One request, three signals](17_logs-traces/) | `demo-17-logs-traces.sh` | JSON logs, request id across web/orders/catalog, OpenTelemetry on with one env var, the trace in Jaeger |
 | 18 | [The shop joins the mesh](18_mesh-onboarding/) | `demo-18-mesh-onboarding.sh` | the real shop + shopper · cluster-admin: mesh in ambient mode, namespace in scope · you: ambient label (still 1/1), NetworkPolicy for HBONE 15008, waypoint + PodMonitor, the whole shop in Kiali |
-| 19 | [Canary and fault injection](19_mesh-traffic/) | `demo-19-mesh-traffic.sh` | catalog v1 + v2, round robin, canary 90/10, fault abort 503, fault delay 2 s – at the waypoint (ambient) |
-| 20 | [Spread and PDB at work](20_ha-pdb/) | `demo-20-ha-pdb.sh` | one replica = outage, topologySpreadConstraints, PDB refuses the second eviction, rollout under load without errors |
+| 19 | [Spread and PDB at work](19_ha-pdb/) | `demo-19-ha-pdb.sh` | one replica = outage, topologySpreadConstraints, PDB refuses the second eviction, rollout under load without errors |
 
 ## Prerequisites
 
 - `oc` CLI, logged in to a cluster (`oc login ...`)
 - permission to create a project (or an existing project named `demo`)
-- `bash` (3.2 or newer – the macOS default works) and `curl`
-- optional: `yq` (mikefarah or python flavour) – demo 01 uses it to show `oc run --overrides` as YAML
-- the cluster can pull `registry.redhat.io/ubi9/ubi`, `quay.io/nginx/nginx-unprivileged`
-  and `nginxinc/nginx-unprivileged` (Docker Hub)
+- `bash` (3.2 or newer – the macOS default and Linux both work), `curl`, a UTF-8 locale
+  (the boxes are drawn with Unicode characters)
+- `helm` for demo 10
+- demo 01 converts YAML to JSON for `oc run --overrides`: it needs `yq` (mikefarah or python
+  flavour) – or, without yq, `python3` with PyYAML (`python3-pyyaml` on RHEL/Fedora) or `ruby`
+- the cluster can pull `registry.redhat.io/ubi9/ubi`, `quay.io/nginx/nginx-unprivileged`,
+  `nginxinc/nginx-unprivileged` (Docker Hub) and the shop images `quay.io/tjungbau/shop-*`
+- some demos need cluster features – see each demo's README (metrics for 15, user workload
+  monitoring for 11, 16 and 18, Service Mesh 3 for 18, a VolumeSnapshotClass for 13)
 
 ## Running a demo
 
@@ -46,7 +50,9 @@ cd demos/01_simple-pod
 Every script:
 
 1. checks that you are logged in and prints cluster, user and project
-2. **switches to the project `demo` – and creates it if it does not exist**
+2. **switches to its project – and creates it if it does not exist**: `demo` for 01–06,
+   its own project from 07 on (`demo-multi`, `demo-shop`, `demo-kustomize`, `demo-storage`,
+   `demo-probes`, `demo-resources`, `demo-monitoring`, `demo-traces`, `demo-mesh`, `demo-ha`)
 3. removes leftovers from a previous run of the same demo
 4. walks through the demo:
    - each command is shown first and runs when you press **ENTER**
@@ -56,8 +62,7 @@ Every script:
 5. on exit (end, `q` or Ctrl-C) asks whether to delete the demo's resources,
    then switches back to the project you were in before
 
-The `demo` project itself is kept, so all demos share it. Remove it with
-`oc delete project demo` when you are done.
+The projects themselves are kept. Remove them with `oc delete project …` when you are done.
 
 ### Options
 
@@ -65,10 +70,10 @@ All options are environment variables:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DEMO_PROJECT` | `demo` | project the demos run in (on a shared cluster: `DEMO_PROJECT=demo-$(oc whoami)`) |
+| `DEMO_PROJECT` | see above | project the demo runs in. Set it per demo (e.g. `DEMO_PROJECT=demo-shop-$(oc whoami)`): demos 06, 10, 11 and 18 close their project with NetworkPolicies – one shared project for all demos breaks the others |
 | `DEMO_CLEANUP` | *(ask)* | `y` or `n` answers the cleanup question in advance |
 | `DEMO_AUTO` | `0` | `1` runs without waiting for ENTER (dry runs, testing) |
-| `DEMO_LABEL` | `openshift-example=yes` | label put on all demo objects |
+| `DEMO_LABEL` | `openshift-example=yes` | label put on the demo objects (demos 01–05; later demos set their labels in the manifests) |
 | `DEMO_THEME_FILE` | `lib/theme.sh` | alternative colour theme |
 | `NO_COLOR` | – | set to disable colours |
 
@@ -80,15 +85,15 @@ DEMO_PROJECT=demo-alice DEMO_CLEANUP=y ./demo-04-deployments.sh
 
 ### Command line options
 
-Demos 01 and 06 also accept the namespace on the command line (this
-overrides `DEMO_PROJECT`):
+Demos 01, 06, 07, 10, 11 and 13–19 also accept the namespace on the command line (this
+overrides `DEMO_PROJECT`; demos 02–05 only read `DEMO_PROJECT`):
 
 ```bash
 ./demo-01-simple-pod.sh -n my-namespace     # or --namespace my-namespace
 ./demo-01-simple-pod.sh --help
 ```
 
-Demo 06 can also run a single step or only the cleanup:
+Demos 06, 10, 11 and 13–19 can also run a single step or only the cleanup (07: only `cleanup`):
 
 ```bash
 ./demo-06-network-policies.sh 3             # only step 3
@@ -108,10 +113,8 @@ demos/
 │   ├── README.md
 │   └── *.yml
 ├── 02_projects_namespaces/
-├── 03_configmaps-secrets/
-├── 04_deployments/
-├── 05_services_routes/
-└── 06_network_policies/
+├── …
+└── 19_ha-pdb/
 ```
 
 ## Writing a new demo
@@ -132,7 +135,7 @@ require_oc_login                       # login check + switch to/create "demo"
 cleanup                                # remove leftovers
 on_exit_cleanup cleanup "Delete the demo pod? [y/N]"
 
-title "Demo 07 – Something" "subtitle"
+title "Demo 99 – Something" "subtitle"
 section "1 · First part"
 comment "Explain what comes next"
 run "oc apply -f my-pod.yml"

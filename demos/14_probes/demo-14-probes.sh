@@ -53,9 +53,9 @@ calls() {
 # fault POD JSON – switch a fault on one Pod (POST /admin/fault, straight to the Pod IP)
 fault() {
   local ip
-  ip="$(oc get pod "$1" -o jsonpath='{.status.podIP}')"
+  ip="$(oc get pod "${1:-}" -o jsonpath='{.status.podIP}')"
   oc exec client -- curl -s -m 5 -X POST "http://${ip}:8080/admin/fault" \
-    -H 'Authorization: Bearer demo-token' -H 'Content-Type: application/json' -d "$2"
+    -H 'Authorization: Bearer demo-token' -H 'Content-Type: application/json' -d "${2:-}"
   echo
 }
 

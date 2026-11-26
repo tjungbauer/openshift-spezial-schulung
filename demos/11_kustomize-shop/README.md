@@ -24,7 +24,7 @@ needs the `monitoring-edit` role (or cluster-admin).
 | 3 | `oc diff -k`, `oc apply -k` of dev, the Route – and a diff without differences |
 | 4 | `my-overlay/`: 2 catalog replicas and `LOG_LEVEL=debug` – one Pod says `info`, the new one `debug` |
 
-By hand, from `revoked/`:
+By hand, from the root of the repository:
 
 ```bash
 oc kustomize shop/deploy/overlays/dev | less

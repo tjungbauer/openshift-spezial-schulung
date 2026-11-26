@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-#  Demo 20 – Spread and PDB at work
-#  Run:     ./demo-20-ha-pdb.sh [-n|--namespace NAME] [STEP|cleanup]
+#  Demo 19 – Spread and PDB at work
+#  Run:     ./demo-19-ha-pdb.sh [-n|--namespace NAME] [STEP|cleanup]
 #  Expects: oc logged in; at least 2 worker nodes (3 zones show the zone
 #           spread best). Everything runs with namespace rights – listing the
 #           nodes and zones in step 1 needs cluster read rights (optional).
@@ -48,7 +48,7 @@ answers() {
 
 # eviction POD – the Eviction object for POD (what oc adm drain sends per Pod)
 eviction() {
-  printf '{"apiVersion": "policy/v1", "kind": "Eviction", "metadata": {"name": "%s"}}\n' "$1"
+  printf '{"apiVersion": "policy/v1", "kind": "Eviction", "metadata": {"name": "%s"}}\n' "${1:-}"
 }
 
 pods() { oc get pods -l "${SEL}" -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'; }
@@ -183,10 +183,10 @@ case "${MODE}" in
     ;;
   all)
     cleanup
-    oc wait --for=delete pod -l app.kubernetes.io/part-of=demo-20 --timeout=90s >/dev/null 2>&1 || true
+    oc wait --for=delete pod -l app.kubernetes.io/part-of=demo-19 --timeout=90s >/dev/null 2>&1 || true
     on_exit_cleanup cleanup "Delete the demo objects? [y/N]"
 
-    title "Demo 20 – Spread and PDB at work" "one replica · spread · PDB · rollout under load"
+    title "Demo 19 – Spread and PDB at work" "one replica · spread · PDB · rollout under load"
     for i in 0 1 2 3; do "step${i}"; done
 
     takeaways \

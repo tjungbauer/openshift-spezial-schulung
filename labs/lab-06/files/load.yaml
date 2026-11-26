@@ -1,4 +1,4 @@
-# Lab 7 – a load generator for catalog. A lab tool, not part of the shop: it does NOT go
+# Lab 6 – a load generator for catalog. A lab tool, not part of the shop: it does NOT go
 # to Git – apply it with oc. Each replica runs 4 parallel curl loops.
 # The shop's NetworkPolicies only let web reach catalog – the second object lets "load" in.
 apiVersion: apps/v1

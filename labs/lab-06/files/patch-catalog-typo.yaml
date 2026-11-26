@@ -1,4 +1,4 @@
-# Lab 7 – the admin token, and a typo in the liveness path (/health/livez)
+# Lab 6 – the admin token, and a typo in the liveness path (/health/livez)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

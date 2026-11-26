@@ -1,4 +1,4 @@
-# Demo 20 – plays the users: GET /products five times per second, one line per call:
+# Demo 19 – plays the users: GET /products five times per second, one line per call:
 #   <time> <HTTP status>      000 = no answer (connection refused or timeout)
 apiVersion: v1
 kind: Pod

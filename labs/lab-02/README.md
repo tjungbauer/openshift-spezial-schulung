@@ -113,7 +113,7 @@ its own DNS entry.
 ```bash
 cat postgres/statefulset.yaml
 oc apply -f postgres/
-sleep 10
+oc rollout status statefulset/postgres --timeout=180s
 oc get statefulset,pod,pvc -l app.kubernetes.io/name=postgres
 oc exec postgres-0 -- getent hosts postgres-0.postgres
 ```

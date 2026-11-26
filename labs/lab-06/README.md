@@ -1,4 +1,4 @@
-# Lab 7 – Break it – and watch it heal (35 min)
+# Lab 6 – Break it – and watch it heal (35 min)
 
 The shop runs from your Git repository (Day 2 start). Now you break catalog on purpose and watch  
 what the probes, the Deployment and the HorizontalPodAutoscaler do about it. To keep it quick,  
@@ -16,11 +16,11 @@ keep auto-sync and push every change into git
 
 **How to work through this lab**
 
-- Run every command from the folder `lab-07/`. Your shop repository is `$SHOP_WORK`
+- Run every command from the folder `lab-06/`. Your shop repository is `$SHOP_WORK`
 (`~/shop-gitops` from the Day 2 start); the commands write into it with `"$SHOP_WORK/…"`
 and `git -C "$SHOP_WORK"` – you never change directories.
 - Tasks 1–5 change catalog with `oc` – **auto-sync is off**. Task 6 puts the result into Git
-and switches auto-sync on again. Do task 6 in any case – lab 8 builds on it.
+and switches auto-sync on again. Do task 6 in any case – lab 7 builds on it.
 - Auto-sync is switched off and on in the **Argo CD UI** (tasks 1 and 6) – keep it open in a
 browser tab.
 - `files/` contains the files for task 6, and two lab tools: `fault.sh` (switches a fault on in
@@ -302,7 +302,7 @@ cp files/patch-catalog-lab.yaml files/hpa-catalog.yaml "$SHOP_WORK/overlays/dev/
 cp files/kustomization-dev-hpa.yaml "$SHOP_WORK/overlays/dev/kustomization.yaml"
 oc kustomize "$SHOP_WORK/overlays/dev" | grep -E 'ADMIN_TOKEN|^kind: HorizontalPodAutoscaler'
 git -C "$SHOP_WORK" add .
-git -C "$SHOP_WORK" commit -m "dev: admin token and HPA for catalog (lab 7)"
+git -C "$SHOP_WORK" commit -m "dev: admin token and HPA for catalog (lab 6)"
 git -C "$SHOP_WORK" push
 ```
 
@@ -347,5 +347,5 @@ changes and add only the lines of `files/kustomization-dev-hpa.yaml`.
 
 ## Cleanup
 
-Nothing to clean up – lab 8 continues with this state (admin token, HPA, auto-sync on). Check
+Nothing to clean up – lab 7 continues with this state (admin token, HPA, auto-sync on). Check
 that the load generator is gone: `oc get deployment load` → `NotFound`.

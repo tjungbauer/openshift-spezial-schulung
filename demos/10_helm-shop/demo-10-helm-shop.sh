@@ -15,13 +15,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "${SCRIPT_DIR}/../lib/demo-lib.sh"
 
 DEMO_USAGE_ARGS="[STEP|cleanup]"
-DEMO_USAGE_EXTRA="  STEP                   run only this step (0-5); default: all steps
+DEMO_USAGE_EXTRA="  STEP                   run only this step (0-4); default: all steps
   cleanup                uninstall the release and delete its leftovers"
 parse_demo_args "$@"
 
 MODE="${DEMO_ARGS[0]:-all}"
 case "${MODE}" in
-  all|[0-5]|cleanup) ;;
+  all|[0-4]|cleanup) ;;
   *) demo_usage >&2; die "Unknown step: ${MODE}" ;;
 esac
 
@@ -169,21 +169,21 @@ step3() {
 #}
 
 step4() {
-  section "5 · Test, roll back – and what survives"
+  section "4 · Test, roll back – and what survives"
 
   run "helm test shop"
   run "helm history shop"
-  run "helm rollback shop 2 --wait"
+  run "helm rollback shop 1 --wait"
   run "helm history shop"
 
   discuss \
     "Rollback = a new revision with the old values" \
     "" \
-    "Back to SQLite: the StatefulSet is gone - its PVC data-postgres-0" \
-    "is still there. Helm did not create it, the StatefulSet did." \
+    "Revision 3 has the values of revision 1: logLevel is back to its" \
+    "default, so catalog and orders roll again (checksum changed)." \
     "" \
-    "Rollback does not touch data - the orders in PostgreSQL stay" \
-    "in that PVC until someone deletes it."
+    "Rollback restores objects, not data - a PVC and what is in it" \
+    "stay as they are."
 }
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -198,7 +198,7 @@ case "${MODE}" in
     cleanup
     success "Cleaned up."
     ;;
-  [0-5])
+  [0-4])
     # single step: no cleanup question – the next step builds on this one
     "step${MODE}"
     ;;
@@ -206,15 +206,14 @@ case "${MODE}" in
     cleanup
     on_exit_cleanup cleanup "Uninstall the shop and delete its PVC? [y/N]"
 
-    title "Demo 10 – The shop as a Helm chart" "render · install · upgrade · hooks · test · rollback"
-    for i in 0 1 2 3 4 5; do "step${i}"; done
+    title "Demo 10 – The shop as a Helm chart" "render · install · upgrade · test · rollback"
+    for i in 0 1 2 3 4; do "step${i}"; done
 
     takeaways \
       "One chart, value files per environment" \
       "helm template and helm lint before every install" \
       "A checksum annotation rolls exactly the Pods whose config changed" \
-      "fail and required stop impossible values early" \
-      "Hooks and tests run at defined points of the release" \
+      "helm test runs the chart's test Pods against the release" \
       "Rollback restores objects, not data – PVCs stay"
     ;;
 esac

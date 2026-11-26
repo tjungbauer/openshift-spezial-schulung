@@ -286,4 +286,12 @@ In the cluster:
 
 ```bash
 oc delete route/shop-catalog service/shop-catalog deployment/shop-catalog
+oc secrets unlink default acme-pull 2>/dev/null || true     # only if you created it in task 6
+oc delete secret acme-pull --ignore-not-found
+```
+
+On your machine:
+
+```bash
+podman rmi $DEV:$TAG shop-catalog-build
 ```

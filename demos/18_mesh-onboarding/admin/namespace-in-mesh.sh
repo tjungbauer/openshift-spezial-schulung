@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Demo 18/19 – the cluster-admin part (run once, as cluster-admin).
+# Demo 18 – the cluster-admin part (run once, as cluster-admin).
 # The mesh is installed in ambient mode already (OSSM 3: Istio "default" and IstioCNI with
 # profile ambient, ZTunnel, Kiali; OVN-Kubernetes routingViaHost: true). istiod only watches
 # namespaces that match its discoverySelectors – on the training cluster the label
 # istio-discovery=enabled. Also creates the ztunnel PodMonitor (L4 metrics for Kiali).
-#   ./admin/namespace-in-mesh.sh demo-mesh demo-traffic
+#   ./admin/namespace-in-mesh.sh demo-mesh
 set -euo pipefail
 [[ $# -ge 1 ]] || { echo "usage: $0 NAMESPACE..." >&2; exit 1; }
 here="$(cd "$(dirname "$0")" && pwd)"

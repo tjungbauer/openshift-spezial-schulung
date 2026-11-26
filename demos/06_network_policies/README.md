@@ -174,8 +174,8 @@ oc delete pod client --ignore-not-found
 oc delete project demo-other
 ```
 
-`../../../utils/cleanup.sh` removes everything labelled `openshift-example=yes`,
-but not the EgressFirewall or the neighbour project.
+`oc delete all,networkpolicy -l openshift-example=yes` removes everything labelled
+`openshift-example=yes`, but not the EgressFirewall or the neighbour project.
 
 ## Notes
 

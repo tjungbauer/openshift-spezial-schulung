@@ -8,4 +8,4 @@ spec:
   clusterIP: None
   selector: { app: hello }
   ports:
-  - { name: http, port: 8080, targetPort: http }
+  - { name: http, port: 8080, targetPort: 8080 }

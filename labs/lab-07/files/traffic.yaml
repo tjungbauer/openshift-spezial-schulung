@@ -1,4 +1,4 @@
-# Lab 8 – steady traffic through web (about 5 requests per second): the product list and
+# Lab 7 – steady traffic through web (about 5 requests per second): the product list and
 # single products, like a browser would ask. A lab tool, not part of the shop: it does
 # NOT go to Git – apply it with oc, delete it at the end.
 # It calls web, not catalog: web logs every request too, with the same request id.

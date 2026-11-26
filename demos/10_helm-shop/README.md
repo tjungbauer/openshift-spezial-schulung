@@ -12,7 +12,7 @@ cd demos/10_helm-shop
 ```
 
 Needs `oc` (logged in), `helm` and `curl`; the cluster pulls the shop images
-(`quay.io/tjungbau/shop-*`) and, from step 4, `registry.redhat.io/rhel9/postgresql-16`.
+(`quay.io/tjungbau/shop-*`).
 
 | Step | What you see |
 |---|---|
@@ -20,18 +20,16 @@ Needs `oc` (logged in), `helm` and `curl`; the cluster pulls the shop images
 | 1 | `helm lint`, `helm template` – the objects, the checksum annotation, `.Capabilities` |
 | 2 | `helm upgrade --install … --wait` with the dev values, NOTES, the Route |
 | 3 | `--set logLevel=debug` – only catalog and orders get new Pods (checksum) |
-| 4 | PostgreSQL on top of dev: the chart refuses (`fail`); prod values: StatefulSet, migration hook, backups |
-| 5 | `helm test`, `helm rollback` – the PVC `data-postgres-0` survives |
+| 4 | `helm test`, `helm rollback shop 1` – a new revision with the old values; PVCs stay |
 
-By hand, from `revoked/shop`:
+By hand, from `shop/` in the repository:
 
 ```bash
 export CHART=deploy/helm/shop
 helm upgrade --install shop $CHART -f $CHART/values-dev.yaml --wait --timeout 5m
 helm upgrade shop $CHART -f $CHART/values-dev.yaml --set logLevel=debug --wait
-helm upgrade shop $CHART -f $CHART/values-prod.yaml --wait --timeout 5m
 helm test shop
-helm rollback shop 2 --wait
+helm rollback shop 1 --wait
 helm uninstall shop
-oc delete pvc data-postgres-0
+oc delete pvc -l app.kubernetes.io/instance=shop
 ```

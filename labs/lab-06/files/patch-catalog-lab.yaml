@@ -1,4 +1,4 @@
-# Lab 7 – catalog with an admin token, so POST /admin/fault works (lab only!)
+# Lab 6 – catalog with an admin token, so POST /admin/fault works (lab only!)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

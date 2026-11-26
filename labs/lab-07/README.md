@@ -1,4 +1,4 @@
-# Lab 8 – Metrics, alerts and logs (30 min)
+# Lab 7 – Metrics, alerts and logs (30 min)
 
 The shop has been exposing metrics since the Day 2 start – nobody looked at them yet. Now you
 check that Prometheus scrapes them, ask them questions with PromQL, put an alert into Git, make
@@ -14,7 +14,7 @@ it fire – and find the log lines behind the alert.
 
 **How to work through this lab**
 
-- Run every command from the folder `lab-08/`. Your shop repository is `$SHOP_WORK`
+- Run every command from the folder `lab-07/`. Your shop repository is `$SHOP_WORK`
 (`~/shop-gitops`); the commands write into it with `"$SHOP_WORK/…"` and
 `git -C "$SHOP_WORK"` – you never change directories.
 - Changes to the shop go through Git: **commit, push, refresh**. Lab tools
@@ -24,7 +24,7 @@ your shop namespace selected. Keep a browser tab open next to the terminal.
 
 ## Before you start
 
-Lab 7 must be done, including task 6: `shop-dev` is `Synced` / `Healthy` with auto-sync on,
+Lab 6 must be done, including task 6: `shop-dev` is `Synced` / `Healthy` with auto-sync on,
 catalog runs with 2 replicas (HPA) and an admin token.
 
 ```bash
@@ -225,7 +225,7 @@ off, the alert resolves within two minutes.
 
 **If it does not work**
 
-- `fault.sh` answers `401 invalid admin token` – the admin token of lab 7 is missing:
+- `fault.sh` answers `401 invalid admin token` – the admin token of lab 6 is missing:
 `oc get deployment catalog -o yaml | grep -A1 ADMIN_TOKEN`.
 - The alert stays inactive – is there traffic? `oc get deployment traffic`; the 503 line must
 show in task 3's status query.
@@ -245,7 +245,7 @@ oc logs -l app.kubernetes.io/name=catalog --tail=-1 --since=10m --prefix | grep 
 
 ## Cleanup
 
-Stop the traffic – the alerts stay in Git, lab 9 continues with this state:
+Stop the traffic – the alerts stay in Git, the shop keeps running from your repository:
 
 ```bash
 ./files/fault.sh '{"error_rate": 0, "delay_ms": 0}'

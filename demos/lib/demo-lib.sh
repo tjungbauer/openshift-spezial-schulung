@@ -127,15 +127,29 @@ show_file() {
 
 # discuss "Title" "line" "line" ... – highlighted box to talk about, then pause
 discuss() {
-  local inner=${DEMO_WIDTH} maxlen=$((DEMO_WIDTH - 4)) line colour first=1
+  local inner=${DEMO_WIDTH} maxlen=$((DEMO_WIDTH - 2)) line colour first=1
   printf "\n"
   printf "%s%s╔%s╗%s\n" "${C_DISCUSS_BG}" "${C_DISCUSS_TITLE}" "$(_repeat '═' "${inner}")" "${C_RESET}"
   printf "%s%s║%s║%s\n" "${C_DISCUSS_BG}" "${C_DISCUSS_TITLE}" "$(_repeat ' ' "${inner}")" "${C_RESET}"
+  local rest head indent
   for line in "$@"; do
-    [[ ${#line} -gt ${maxlen} ]] && line="${line:0:${maxlen}}"
     if [[ ${first} -eq 1 ]]; then colour="${C_DISCUSS_TITLE}"; first=0; else colour="${C_DISCUSS_BODY}"; fi
-    printf "%s%s║  %s%s%s║%s\n" "${C_DISCUSS_BG}" "${colour}" "${line}" \
-      "$(_repeat ' ' $((inner - 2 - ${#line})))" "${C_DISCUSS_TITLE}" "${C_RESET}"
+    # long lines wrap at the last space that fits; continuation lines are indented
+    rest="${line}"
+    indent="${line%%[! ]*}  "
+    while :; do
+      if [[ ${#rest} -le ${maxlen} ]]; then
+        head="${rest}"; rest=""
+      else
+        head="${rest:0:${maxlen}}"
+        if [[ "${head}" == *" "* && "${head% *}" == *[![:space:]]* ]]; then head="${head% *}"; fi
+        rest="${rest:${#head}}"
+        rest="${indent}${rest#"${rest%%[! ]*}"}"
+      fi
+      printf "%s%s║  %s%s%s║%s\n" "${C_DISCUSS_BG}" "${colour}" "${head}" \
+        "$(_repeat ' ' $((inner - 2 - ${#head})))" "${C_DISCUSS_TITLE}" "${C_RESET}"
+      [[ -z "${rest}" ]] && break
+    done
   done
   printf "%s%s║%s║%s\n" "${C_DISCUSS_BG}" "${C_DISCUSS_TITLE}" "$(_repeat ' ' "${inner}")" "${C_RESET}"
   printf "%s%s╚%s╝%s\n" "${C_DISCUSS_BG}" "${C_DISCUSS_TITLE}" "$(_repeat '═' "${inner}")" "${C_RESET}"

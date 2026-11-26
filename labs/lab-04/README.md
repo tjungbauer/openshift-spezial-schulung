@@ -461,7 +461,7 @@ lists **two** dev ConfigMaps – the old one is still there.
 
 > **What to notice:** the hash turns "configuration changed" into "Pod template changed" – a
 > rolling update without `oc rollout restart`. And `oc apply -k` never deletes: the old
-> ConfigMap stays until you remove it (Argo CD can prune it – module 05).
+> ConfigMap stays until you remove it (Argo CD can prune it – lab 5).
 
 ---
 

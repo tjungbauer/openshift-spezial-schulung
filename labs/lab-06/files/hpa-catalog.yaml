@@ -1,4 +1,4 @@
-# Lab 7 – catalog between 2 and 6 replicas, at 60 % of its CPU request (50m -> 30m)
+# Lab 6 – catalog between 2 and 6 replicas, at 60 % of its CPU request (50m -> 30m)
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

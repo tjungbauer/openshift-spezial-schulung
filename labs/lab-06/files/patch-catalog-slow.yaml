@@ -1,4 +1,4 @@
-# Lab 7 – the admin token, and a start that takes 40 s (FAULT_STARTUP_DELAY_S)
+# Lab 6 – the admin token, and a start that takes 40 s (FAULT_STARTUP_DELAY_S)
 apiVersion: apps/v1
 kind: Deployment
 metadata:

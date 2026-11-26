@@ -10,7 +10,7 @@ call graph. Runs in its own project `demo-mesh`. About 7 minutes.
 
 ```bash
 cd demos/18_mesh-onboarding
-./admin/namespace-in-mesh.sh demo-mesh demo-traffic   # cluster-admin, once (also for demo 19)
+./admin/namespace-in-mesh.sh demo-mesh                # cluster-admin, once
 ./demo-18-mesh-onboarding.sh                          # all steps
 ./demo-18-mesh-onboarding.sh 2                        # one step (creates what it needs)
 ./demo-18-mesh-onboarding.sh cleanup

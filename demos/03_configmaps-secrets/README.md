@@ -39,7 +39,7 @@ oc create configmap config --from-file=configuration=mainconfig.yml --from-file=
 oc create configmap podenv --from-literal=variable=myvalue
 ```
 
-Label them, so that `../../../utils/cleanup.sh` finds them later:
+Label them, so that one command finds them later (`oc delete all,cm,secret -l openshift-example=yes`):
 
 ```bash
 oc label configmap run config podenv openshift-example=yes

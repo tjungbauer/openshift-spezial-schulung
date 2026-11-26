@@ -94,7 +94,8 @@ cat website/templates/_helpers.tpl
 
 **If it does not work**
 
-- `Error: … already exists` – `website/` is left from an earlier try. `rm -rf website`, start again.
+- `WARNING: File … already exists. Overwriting.` – `website/` is left from an earlier try; files from
+that try (e.g. the bonus `configmap.yaml`) stay. `rm -rf website`, start again.
 - `helm: command not found` – install Helm or ask the trainer.
 
 ### 2 · Chart.yaml and values.yaml
@@ -284,8 +285,8 @@ EOF
 - `NOTES.txt` – plain text with template expressions; Helm prints it after install and upgrade.
   `.Release.Name`, `.Release.Revision` and `.Release.Namespace` are filled in by Helm.
 
-Check the result: `helm template website ./website` now prints three objects, the last command
-of the block prints only `kind: Service` and `kind: Deployment` – the Route is gone.
+Check the result in task 5: `helm template website ./website` prints three objects; with
+`--set route.enabled=false` it prints only `kind: Service` and `kind: Deployment` – the Route is gone.
 
 > **What to notice:** `if` switches the whole Route on or off. `with` sets `host` only
 > when a value is given – inside `with`, the dot **is** the host. `NOTES.txt` is printed
@@ -416,7 +417,7 @@ no longer shows `website`.
 **Expected result:** `release "website" uninstalled`, an empty `helm list`, `No resources found`.
 
 The chart folder `website/` stays on your machine – your work. If you want to run the lab again
-from the start, remove it: `rm -rf website` (task 1 refuses to overwrite it).
+from the start, remove it: `rm -rf website` (task 1 overwrites the generated files but keeps your extra ones).
 
 > **What to notice:** one command, everything gone – because Helm tracks what it installed.
 > Compare with lab 0, where you deleted every object by name.

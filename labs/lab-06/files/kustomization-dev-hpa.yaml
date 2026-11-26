@@ -1,4 +1,4 @@
-# Lab 7 task 6 – the shop's dev overlay plus:
+# Lab 6 task 6 – the shop's dev overlay plus:
 #   hpa-catalog.yaml          an HPA for catalog (2-6 replicas)
 #   patch-catalog-lab.yaml    the admin token (task 3)
 #   a JSON patch              removes spec.replicas from catalog – the HPA decides, not Git
@@ -6,7 +6,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
 - ../../base
-- hpa-catalog.yaml              # lab 7 task 6: the HPA owns the replica count
+- hpa-catalog.yaml              # lab 6 task 6: the HPA owns the replica count
 
 # building blocks – dev keeps SQLite, on a PVC
 # (available: networkpolicies, monitoring, persistent-orders, postgres, backup;

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -euf pipefail
+set -euf
 
 IFS='
 '

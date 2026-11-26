@@ -60,9 +60,9 @@ step0() {
   discuss \
     "Who owns what is visible in the tree" \
     "" \
-    "  base/         one folder per service - what every environment shares" \
-    "  components/   features: networkpolicies, monitoring, postgres, backup" \
-    "  overlays/     dev and prod pick images and components - no copied YAML" \
+    "  base/        one folder per service - shared by every environment" \
+    "  components/  features: networkpolicies, monitoring, postgres, backup" \
+    "  overlays/    dev and prod pick images and components, no copied YAML" \
     "" \
     "The base has no namespace: the overlay or oc -n decides."
 }
@@ -103,10 +103,34 @@ step2() {
 step3() {
   section "3 · Preview, then apply the dev overlay"
 
+  comment "What would change in the cluster? (exit code 1 = there are differences)"
+  run "oc diff -k \$DEPLOY/overlays/dev | head -40"
   run "oc apply -k \$DEPLOY/overlays/dev"
   run "oc get deployment,service,route,pvc,networkpolicy"
   run "echo \$(oc get route web -o jsonpath='https://{.spec.host}')"
+  comment "Once more – now the cluster matches Git: no output"
+  run "oc diff -k \$DEPLOY/overlays/dev"
+}
 
+step4() {
+  section "4 · Your own overlay – on top of dev"
+
+  show_file my-overlay/kustomization.yaml
+  run "oc kustomize my-overlay | grep -B2 -A6 '^kind: ConfigMap' | head -12"
+  run "oc apply -k my-overlay"
+  run "oc rollout status deployment/catalog --timeout=120s"
+  comment "Which LOG_LEVEL does each catalog Pod have?"
+  run "for p in \$(oc get pods -l app.kubernetes.io/name=catalog -o name); do echo \"\$p  LOG_LEVEL=\$(oc exec \$p -c catalog -- python3.12 -c 'import os; print(os.getenv(\"LOG_LEVEL\"))')\"; done"
+
+  discuss \
+    "One Pod says info, the new one says debug" \
+    "" \
+    "The ConfigMap catalog has no generator hash: its content changed," \
+    "its name did not - so the Pod template did not change either." \
+    "Only the second replica, started now, reads the new value." \
+    "" \
+    "A configMapGenerator (name + hash) makes every change roll out."
+}
 # ═══════════════════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════════════════

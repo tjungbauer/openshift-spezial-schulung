@@ -1,4 +1,4 @@
-# Lab 8 task 4 – two alerts for catalog. Goes to Git: copy it into
+# Lab 7 task 4 – two alerts for catalog. Goes to Git: copy it into
 # $SHOP_WORK/overlays/dev/ – Argo CD creates it in your shop namespace.
 # job="catalog" is the Service the ServiceMonitor scrapes; the namespace is added
 # automatically (user workload monitoring only sees the rule's own namespace).
